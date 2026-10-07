@@ -116,8 +116,8 @@ void setup() {
 // ----- Loop -----
 void loop() {
 
-    String date = GetCurrentDate();
-    String hour = GetCurrentHour();
+    // String date = GetCurrentDate();
+    // String hour = GetCurrentHour();
     DEBUG_LOG(String(ncapt) + " capteurs détectés.");
 
     
