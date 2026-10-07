@@ -1,6 +1,6 @@
 # Firmware getting started (MOLONARI1D)
 
-This is the main entry point for firmware developers.
+This is the main entry point for firmware developers. Beware of changes.
 
 If you are new here, read this file first. Other README files in subfolders are component details.
 
