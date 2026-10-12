@@ -11,6 +11,8 @@
 #include "Time.hpp"
 #include "Writer.hpp"
 
+#include "version.hpp"
+
 
 #define DEBUG_MAIN
 #define DEBUG_MEASURE
@@ -62,6 +64,9 @@ void setup() {
     while (!Serial && millis() < end_date) {}
 
     Serial.println("\n=== Initialisation du Relais Molonari ===");
+
+    Serial.print("Relay Firmware Version: ");
+    Serial.println(RelayVersion::VERSION);
 
 
     // Lecture configuration CSV
