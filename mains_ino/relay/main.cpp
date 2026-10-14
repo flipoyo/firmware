@@ -12,20 +12,7 @@
 #include "Writer.hpp"
 
 #include "version.hpp"
-
-
-#define DEBUG_MAIN
-#define DEBUG_MEASURE
-#define DEBUG_WRITER
-#define DEBUG_READER
-
-#ifdef DEBUG_MAIN
-#define DEBUG_LOG(msg) Serial.println(msg)
-#define DEBUG_LOG_NO_LN(msg) Serial.print(msg)
-#else
-#define DEBUG_LOG(msg)
-#define DEBUG_LOG_NO_LN(msg)
-#endif
+#include "main.hpp"
 
 
 LoRaModem modem;
@@ -42,16 +29,13 @@ long lastAttempt = 0;// mémorise la dernière tentative de réception (en milli
 String appEui;
 String devEui;
 String appKey;
-LoraCommunication lora(868E6, devEui, appEui, RoleType::MASTER);
+LoraCommunication lora(LoRaConfig::FREQUENCY_Hz, devEui, appEui, RoleType::MASTER);
 bool modif = false;
-int CSPin = 5; // Pin CS par défaut
-
-const char* configFilePath = "conf.csv";
 
 Waiter waiter; //pour ne pas l'indenter dans le loop
 unsigned long lastSDOffsetConfig = 0;
 unsigned long lastSDOffset = 0;
-const char filename[] = "RECORDS.CSV";
+const char filename[] = RECORDS_FILENAME;
 
 
 // ----- Setup -----
@@ -59,8 +43,8 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, HIGH);
 
-    Serial.begin(9600);
-    unsigned long end_date = millis() + 5000;
+    Serial.begin(SerialConfig::BAUD_RATE);
+    unsigned long end_date = millis() + SerialConfig::TIMEOUT_MS;
     while (!Serial && millis() < end_date) {}
 
     Serial.println("\n=== Initialisation du Relais Molonari ===");
@@ -71,11 +55,11 @@ void setup() {
 
     // Lecture configuration CSV
     Reader reader;
-    res=reader.lireConfigCSV("conf.csv", CSPin);
+    res=reader.lireConfigCSV(Storage::CONFIG_FILE, Pins::SD_CS);
     Serial.println("Configuration chargée.");
 
     // Initialisation LoRa communication
-    lora.LoraUpdateAttributes(868E6, res.rel_config.appEui, res.rel_config.devEui, RoleType::MASTER);
+    lora.LoraUpdateAttributes(LoRaConfig::FREQUENCY_Hz, res.rel_config.appEui, res.rel_config.devEui, RoleType::MASTER);
 
     // Vérification SD
     if (!SD.begin(res.rel_config.CSPin)) {
@@ -84,7 +68,7 @@ void setup() {
     }
 
     InitialiseRTC();
-    logger.EstablishConnection(CSPin);
+    logger.EstablishConnection(Pins::SD_CS);
 
     Serial.println("Initialisation terminée !");
     pinMode(LED_BUILTIN, INPUT_PULLDOWN);
@@ -116,7 +100,7 @@ void loop() {
 
             //envoie du csv
             if (modif==true) { // normalement modif est toujours false pour l'instant : la focntion de modif n'est pa sbien implémentée
-                File config = SD.open(configFilePath, FILE_READ);
+                File config = SD.open(Storage::CONFIG_FILE, FILE_READ);
                 config.seek(lastSDOffsetConfig);
                 std::queue<memory_line> lines_config;
 
@@ -143,7 +127,7 @@ void loop() {
 
         // Envoi via LoRaWAN si intervalle complet atteint
 
-        File dataFile = SD.open(filename, FILE_READ);
+        File dataFile = SD.open(Storage::RECORDS_FILE, FILE_READ);
         DEBUG_LOG("File has been opened");
 
         if (!dataFile) {
@@ -156,7 +140,7 @@ void loop() {
             Serial.println("temps avant communication : " + String(CalculateSleepTimeUntilNextCommunication(lastAttempt, res.int_config.lora_intervalle_secondes)));
 
 
-            while (CalculateSleepTimeUntilNextCommunication(lastAttempt, res.int_config.lora_intervalle_secondes) > 60000 && dataFile.available()) { //racourcir de 60000 à 10000 pour les besoins de la démo
+            while (CalculateSleepTimeUntilNextCommunication(lastAttempt, res.int_config.lora_intervalle_secondes) > LoRaConfig::MIN_SLEEP_MS && dataFile.available()) { //racourcir de Radio::MIN_SLEEP_MS à 10000 pour les besoins de la démo
                 //at this point, lastSDOffset must point to the first memory address of the first line to be sent
                 DEBUG_LOG("entrée dans le while d'envoi LoRaWAN");
                 std::queue<memory_line> linesToSend;
@@ -191,7 +175,7 @@ void loop() {
         DEBUG_LOG("about to loop on modem.available()");
         // reception csv et modification
         while (modem.available()) {
-            loraWAN.receiveConfig(configFilePath, modif);
+            loraWAN.receiveConfig(Storage::CONFIG_FILE, modif);
             modif = true;
         }
 
@@ -201,9 +185,3 @@ void loop() {
     LowPower.idle(uint32_t(time_to_sleep));
     }
 }
-
-
-
-
-
-
