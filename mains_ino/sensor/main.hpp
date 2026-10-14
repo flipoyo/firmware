@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-namespace Serial {
+namespace SerialConfig {
     constexpr uint32_t BAUD_RATE = 115200;          // Default serial communication speed.
 }
 
@@ -13,7 +13,8 @@ namespace Pins {
 }
 
 namespace Storage {
-    constexpr char DATA_FILE_NAME[] = "RECORDS.CSV"; // File containing recorded measurements.
+    #define SENSOR_DATA_FILE_NAME "RECORDS.CSV"
+    constexpr char DATA_FILE_NAME[] = SENSOR_DATA_FILE_NAME; // File containing recorded measurements.
     constexpr const char* CONFIG_FILE_PATH = "conf.csv"; // Configuration file path.
 }
 
@@ -34,6 +35,7 @@ namespace MeasurementConfig {
     constexpr long INTERVAL_TOLERANCE_SECONDS = 1; // Measurement scheduling tolerance.
     constexpr unsigned long SOON_THRESHOLD_MS = 1000; // Threshold for deciding a measurement is imminent.
     constexpr double INITIAL_VALUE = 0;             // Default value stored for a new measurement.
+    constexpr uint16_t INITIAL_RECEIVED_INTERVAL = 0; // Default measurement interval received from the relay.
 }
 
 namespace RuntimeDefaults {
@@ -49,4 +51,5 @@ namespace Timing {
     constexpr unsigned long SETUP_DELAY_MS = 1000;  // Delay after setup completes.
     constexpr unsigned long CONFIG_UPDATE_TIMEOUT_MS = 15000; // Wait time for a configuration update.
     constexpr unsigned long SLEEP_TIME_MILLISECONDS = 1000; // Converts sleep seconds to milliseconds for logging.
+    constexpr unsigned long SOON_THRESHOLD_MS = 1000; // Threshold for determining if a measurement is imminent.
 }
