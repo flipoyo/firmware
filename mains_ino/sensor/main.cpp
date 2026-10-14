@@ -13,6 +13,7 @@
 #include "Waiter.hpp"
 #include "Reader.hpp"
 
+#include "main.hpp"
 #include "version.hpp"
 
 #define DEBUG_MAIN
@@ -41,31 +42,29 @@ String appEui;
 
 //std::string FileName = "conf_sen.csv"; Impossible to use that because SD.open() takes squid string arguments
 Writer logger;
-const int CSPin = 5;
-const char filename[] = "RECORDS.CSV";
-const char* configFilePath = "conf.csv";
-int ncapt = 0; 
+const char filename[] = SENSOR_DATA_FILE_NAME;
+int ncapt = RuntimeDefaults::INITIAL_SENSOR_COUNT;
 
 // LoRa
-LoraCommunication lora(868E6, devEui, appEui, RoleType::SLAVE);
-long lastLoRaSend = 0;
-long lastMeasure = 0;
-unsigned long lastSDOffset = 0;
+LoraCommunication lora(LoRaConfig::FREQUENCY_HZ, devEui, appEui, RoleType::SLAVE);
+long lastLoRaSend = LoRaConfig::INITIAL_LAST_SEND;
+long lastMeasure = MeasurementConfig::INITIAL_LAST_MEASURE;
+unsigned long lastSDOffset = RuntimeDefaults::INITIAL_SD_OFFSET;
 
-uint16_t newMeasureInterval = 0;
-uint16_t newLoraInterval = 0;
+uint16_t newMeasureInterval = MeasurementConfig::INITIAL_INTERVAL;
+uint16_t newLoraInterval = LoRaConfig::INITIAL_INTERVAL;
 
-const long sec_in_day = 86400;
-bool rattrapage = false;
-bool a_line_remains_to_log = false;
+const long sec_in_day = MeasurementConfig::SECONDS_IN_DAY;
+bool rattrapage = RuntimeDefaults::INITIAL_RATTRAPAGE;
+bool a_line_remains_to_log = RuntimeDefaults::INITIAL_LINE_REMAINS_TO_LOG;
 
 // ----- Setup -----
 void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, HIGH);
     
-    Serial.begin(115200);
-    long end_date = millis() + 5000;
+    Serial.begin(SerialConfig::BAUD_RATE);
+    long end_date = millis() + Timing::SERIAL_STARTUP_TIMEOUT_MS;
     while (!Serial && millis() < end_date) {}
     
     Serial.print("Sensor Firmware Version: ");
@@ -75,7 +74,7 @@ void setup() {
     // Lecture de la configuration CSV
     Reader reader;
 
-    GeneralConfig temp_config_container = reader.lireConfigCSV("conf.csv", CSPin);
+    GeneralConfig temp_config_container = reader.lireConfigCSV(Storage::CONFIG_FILE_PATH, Pins::SD_CHIP_SELECT_PIN);
     IntervallConfig int_conf = temp_config_container.int_config;
     
     liste_capteurs = temp_config_container.liste_capteurs;
@@ -91,7 +90,7 @@ void setup() {
         DEBUG_LOG("échec de la lecture du fichier config");
     }
 
-    lora.LoraUpdateAttributes(868E6, appEui, devEui, RoleType::SLAVE);
+    lora.LoraUpdateAttributes(LoRaConfig::FREQUENCY_HZ, appEui, devEui, RoleType::SLAVE);
 
     // Compter les capteurs
     for (auto & _c : liste_capteurs) {
@@ -103,19 +102,19 @@ void setup() {
     // Initialisation des capteurs
     for (int it = 0; it<ncapt; it++) {
         SensorConfig _c = liste_capteurs[it];
-        sens[it] = new Sensor(_c.pin, 4, _c.type_capteur);
-        toute_mesure.push_back(0);
+        sens[it] = new Sensor(_c.pin, Pins::SENSOR_ENABLE_PIN, _c.type_capteur);
+        toute_mesure.push_back(MeasurementConfig::INITIAL_VALUE);
         DEBUG_LOG("inserted new Sensor ptr at position " + String(it) + " of sens with attributes :");
         DEBUG_LOG("_c.pin : " + String(_c.pin) + "  _c.type_capteur : " + String(_c.type_capteur) + "\n\n");
     }
 
     // Initialisation SD et logger
-    if (!SD.begin(CSPin)) { while(true) {} }
-    logger.EstablishConnection(CSPin);
+    if (!SD.begin(Pins::SD_CHIP_SELECT_PIN)) { while(true) {} }
+    logger.EstablishConnection(Pins::SD_CHIP_SELECT_PIN);
     InitialiseRTC();
     digitalWrite(LED_BUILTIN, LOW);
     DEBUG_LOG ("Setup finished");
-    delay(1000);
+    delay(Timing::SETUP_DELAY_MS);
 }
 
 // ----- Loop -----
@@ -130,7 +129,7 @@ void loop() {
     // --- Prendre mesures ---
     long current_Time=GetSecondsSinceMidnight();
     DEBUG_LOG("Temps actuel : " + String(current_Time));
-    bool IsTimeToMeasure = ((current_Time - lastMeasure) >= (intervalle_de_mesure_secondes - 1));
+    bool IsTimeToMeasure = ((current_Time - lastMeasure) >= (intervalle_de_mesure_secondes - MeasurementConfig::INTERVAL_TOLERANCE_SECONDS));
     
     DEBUG_LOG("ncapt : " + String(ncapt)); //so far
 
@@ -149,7 +148,7 @@ void loop() {
         a_line_remains_to_log = true;
         digitalWrite(LED_BUILTIN, LOW);
     }else{
-        DEBUG_LOG("Not time to measure yet : current_Time - lastMeasure = " + String(current_Time - lastMeasure) + " ; intervalle_de_mesure_secondes - 1 = " + String(intervalle_de_mesure_secondes - 1));
+        DEBUG_LOG("Not time to measure yet : current_Time - lastMeasure = " + String(current_Time - lastMeasure) + " ; intervalle_de_mesure_secondes - tolerance = " + String(intervalle_de_mesure_secondes - MeasurementConfig::INTERVAL_TOLERANCE_SECONDS));
     }
 
     
@@ -163,11 +162,11 @@ void loop() {
 
     // --- Envoyer LoRa si intervalle atteint ---
     
-    bool IsTimeToLoRa = ((current_Time - lastLoRaSend) >= (lora_intervalle_secondes - 60));
+    bool IsTimeToLoRa = ((current_Time - lastLoRaSend) >= (lora_intervalle_secondes - LoRaConfig::INTERVAL_TOLERANCE_SECONDS));
 
     if (IsTimeToLoRa || rattrapage) {
         digitalWrite(LED_BUILTIN, HIGH);
-        File dataFile = SD.open(filename, FILE_READ);
+        File dataFile = SD.open(Storage::DATA_FILE_NAME, FILE_READ);
         DEBUG_LOG("File has been opened");
 
         if (!dataFile) {
@@ -179,16 +178,16 @@ void loop() {
         lora.startLoRa();
         DEBUG_LOG("LoRa ok, about to try handshake");
 
-        uint8_t id = 0;
+        uint8_t id = LoRaConfig::INITIAL_HANDSHAKE_ID;
         if (lora.handshake(id)) {
             Serial.println("HANDSHAKE DONE\n");
             DEBUG_LOG("CalculateSleepTimeUntilNextMeasurement : " + String(CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes)));
 
             DEBUG_LOG(String(dataFile.available()));
-            bool time_to_mesure_soon = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes) < 1000;
+            bool time_to_mesure_soon = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes) < Timing::SOON_THRESHOLD_MS;
             if(time_to_mesure_soon){
                 DEBUG_LOG("Aborting LoRa send, measurement scheduled soon. Switching to rattrapage mode");
-                lora.closeSession(0);
+                lora.closeSession(LoRaConfig::INITIAL_SESSION_PACKET);
                 rattrapage = true;
             }
             while ( (!time_to_mesure_soon) && dataFile.available()) { //racourcir de 60000 à 10000 pour les besoins de la démo                
@@ -222,8 +221,9 @@ void loop() {
             DEBUG_LOG("Vérification de mise à jour descendante...");
 
 
-            uint16_t recvMeasure = 0, recvLora = 0;
-            if (lora.receiveConfigUpdate(configFilePath, &recvMeasure, &recvLora, 15000)) {
+            uint16_t recvMeasure = MeasurementConfig::INITIAL_RECEIVED_INTERVAL;
+            uint16_t recvLora = LoRaConfig::INITIAL_RECEIVED_INTERVAL;
+            if (lora.receiveConfigUpdate(Storage::CONFIG_FILE_PATH, &recvMeasure, &recvLora, Timing::CONFIG_UPDATE_TIMEOUT_MS)) {
                 DEBUG_LOG("Mise à jour config reçue du master.");
                 intervalle_de_mesure_secondes = recvMeasure;
                 lora_intervalle_secondes = recvLora;
@@ -239,11 +239,11 @@ void loop() {
         Waiter waiter;
         DEBUG_LOG("waiter instancié");
         if (CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes) <= CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes)){
-            long time_to_sleep = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes)*1000;
+            long time_to_sleep = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes)*Timing::SLEEP_TIME_MILLISECONDS;
             DEBUG_LOG("sleeping until next measure, sleeping for " + String (time_to_sleep)+ "ms");
             waiter.sleepUntil(CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes));
         } else {
-            DEBUG_LOG("sleeping until next communication " + String (CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes)*1000)+"ms");
+            DEBUG_LOG("sleeping until next communication " + String (CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes)*Timing::SLEEP_TIME_MILLISECONDS)+"ms");
             waiter.sleepUntil(CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes));
         }
         // Prevent time variables (current_time) to diverge (time domain is 24 hours, to preserve coherence with GetSecondsSinceMidnight)
@@ -251,7 +251,7 @@ void loop() {
         if(current_Time >= sec_in_day){
             lastLoRaSend -= current_Time;
             lastMeasure -= current_Time;
-            current_Time = 0;
+            current_Time = RuntimeDefaults::INITIAL_CURRENT_TIME;
         }
         digitalWrite(LED_BUILTIN, LOW);
     }
