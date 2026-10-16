@@ -2,9 +2,11 @@
 #define WRITER_CLASS_H
 
 #include <SD.h>
+#include <queue>
+#include <vector>
 #include "Measure.hpp"
 
-#define nVersion 1.0.0
+#define nVersion 1.1.0
 
 // The name of the CSV file to which data will be written
 extern const char filename[];
@@ -13,7 +15,7 @@ class Writer
 {
     private:
         File file;
-        unsigned int next_id; 
+        unsigned int next_id = 0;
         int CSPin; 
 
         // Append a measurement (of type Measure) to a new line in the CSV file
