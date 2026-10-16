@@ -1,0 +1,127 @@
+# ==============================================================================
+# ==================== Nabil EL HOUSSEIN (P25) - 2026-2027 =====================
+# ==============================================================================
+# AUTOMATED SEMANTIC VERSIONING CHECK FOR MOLONARI FIRMWARE
+# ==============================================================================
+# Purpose for future developers:
+# Whenever you open a Pull Request to CGS-MOLO or main, this workflow checks if
+# you modified any C++ code in `mains_ino/relay`, `mains_ino/sensor`, or `libs/`.
+# If you did, it verifies that you incremented VERSION ("MAJOR.MINOR.PATCH")
+# inside the corresponding `main.hpp` file(s).
+#
+# How Semantic Versioning (MAJOR.MINOR.PATCH) works:
+# - PATCH (e.g., 0.1.0 -> 0.1.1): Bug fixes, code refactoring, or style cleanup.
+# - MINOR (e.g., 0.1.1 -> 0.2.0): New features added (backwards-compatible).
+# - MAJOR (e.g., 0.2.0 -> 1.0.0): Breaking changes (e.g., new LoRa packet format).
+# ==============================================================================
+
+# ==============================================================================
+# Note: As of 16 October 2026, GitHub workflow is free for PUBLIC repositories
+# ==============================================================================
+
+name: Check Version Bump
+
+on:
+  pull_request:
+    branches:       # List of branches on which this workflow is applied
+      - CGS-MOLO
+      - main
+
+jobs:
+  version-check:
+    runs-on: ubuntu-latest      # Creates a light-weight ubuntu virtual machine on GitHub servers to run this workflow
+    steps:
+      - name: Checkout repository with full Git history
+        uses: actions/checkout@v4   # Official GitHub tool that clones my repo onto the Ubuntu machine
+        with:
+          fetch-depth: 0        # Gets the entire commit history from GitHub so Git can compare the version inside `main.hpp` of the current pull request (new feature/bug fix...) with one of the branches defined above (main or CGS-MOLO) that we want to push into
+
+      - name: Verify VERSION in main.hpp was properly incremented
+        run: |
+          BASE_BRANCH="origin/${{ github.base_ref }}"                       # Grabs the name of the branch that the pull request is trying to merge into
+          CHANGED_FILES=$(git diff --name-only "$BASE_BRANCH"...HEAD)       # Saves the names of all the modified files that we want to push
+
+          # Prints the names of the modified files
+          echo "Files modified in this Pull Request:"
+          echo "$CHANGED_FILES"
+          echo "---------------------------------------------------"
+
+          # Helper function: extracts "MAJOR.MINOR.PATCH" from a main.hpp file that is passed in the first argument $1
+          # Expects a line like: constexpr const char* VERSION = "1.1.3";
+          extract_semver() {          # semver = Semantic Versioning
+            local content="$1"        # Saves the first argument in variable `content`
+            # echo loads main.hpp as text => first grep searches for the line containing `VERSION =` => second grep extracts the "X.Y.Z" numbers
+            echo "$content" | grep -E 'VERSION\s*=' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1
+          }
+
+          # Helper function: checks that target main.hpp has a strictly greater VERSION than on the base branch
+          verify_bump() {
+            local target_dir="$1"               # The first parameter passed to the function is the folder name that contains the modified files (e.g., mains_ino/relay or libs/Writer)
+            local version_file="${target_dir}/main.hpp"
+
+            if ! echo "$CHANGED_FILES" | grep -q "^${version_file}$"; then          # Outputs an error if `main.hpp` is not one of the changed files
+              echo "::error::Code in '${target_dir}' was modified, but '${version_file}' was not updated! Please increment VERSION."
+              exit 1
+            fi
+
+            # New library: main.hpp doesn't exist on the base branch yet, so there is nothing to compare against.
+            # We only require that the new file contains a parseable VERSION.
+            if ! git cat-file -e "${BASE_BRANCH}:${version_file}" 2>/dev/null; then
+              NEW_VER=$(extract_semver "$(cat "${version_file}")")
+              if [[ -z "$NEW_VER" ]]; then
+                echo "::error::New file ${version_file} must contain VERSION = \"MAJOR.MINOR.PATCH\"."
+                exit 1
+              fi
+              echo "New file ${version_file} (VERSION ${NEW_VER}): nothing to compare against."
+              return 0
+            fi
+
+            # Compares the old `main.hpp` on the base branch with the new one on the PR branch to make sure that VERSION was incremented
+            OLD_CONTENT=$(git show "${BASE_BRANCH}:${version_file}" 2>/dev/null || echo "")
+            NEW_CONTENT=$(cat "${version_file}")
+
+            # Uses the helper function extract_semver() to extract the version string from the old and new files
+            OLD_VER=$(extract_semver "$OLD_CONTENT")
+            NEW_VER=$(extract_semver "$NEW_CONTENT")
+
+            echo "Checking ${version_file}: ${OLD_VER} (base) ->${NEW_VER} (PR)"
+
+            # Checks if any of the two vars are empty (-z returns true if the var is empty)
+            if [[ -z "$OLD_VER" || -z "$NEW_VER" ]]; then
+              echo "::error::Could not parse VERSION = \"MAJOR.MINOR.PATCH\" from ${version_file}. Keep the standard format."
+              exit 1
+            fi
+
+            # Loophole check: make sure that the modified `main.hpp` actually contains an incremented VERSION and not just a code change, random comment, or space
+            if [[ "$OLD_VER" == "$NEW_VER" ]]; then
+              echo "::error::${version_file} was modified, but VERSION (${NEW_VER}) did not change! Please increment it."
+              exit 1
+            fi
+
+            # Verify NEW_VER > OLD_VER using version sort (sort -V)
+            HIGHEST_VER=$(printf "%s\n%s\n" "$OLD_VER" "$NEW_VER" | sort -V | tail -n1)
+            if [[ "$HIGHEST_VER" != "$NEW_VER" ]]; then
+              echo "::error::VERSION in ${version_file} went backwards (${OLD_VER} ->${NEW_VER})!"
+              exit 1
+            fi
+          }
+
+          # 1. Direct changes in mains_ino/relay/ (ignoring .md and .csv files)
+          if echo "$CHANGED_FILES" | grep -E '^mains_ino/relay/' | grep -qvE '(\.md|\.csv)$'; then
+            verify_bump "mains_ino/relay"
+          fi
+
+          # 2. Direct changes in mains_ino/sensor/ (ignoring .md and .csv files)
+          if echo "$CHANGED_FILES" | grep -E '^mains_ino/sensor/' | grep -qvE '(\.md|\.csv)$'; then
+            verify_bump "mains_ino/sensor"
+          fi
+
+          # 3. Direct changes in libs/: each modified library only needs to update its own libs/<lib>/main.hpp (ignoring .md files)
+          MODIFIED_LIBS=$(echo "$CHANGED_FILES" | grep -E '^libs/[^/]+/' | grep -vE '\.md$' | cut -d'/' -f2 | sort -u || true)
+          for lib in $MODIFIED_LIBS; do
+            [ -d "libs/$lib" ] || { echo "libs/$lib was removed, skipping."; continue; }        # This line skips libraries that a pull request deleted, so the check doesn’t fail on a folder that no longer exists.
+            echo "Detected change in library: libs/$lib"
+            verify_bump "libs/$lib"
+          done
+
+          echo "Perfect. Semantic version check passed!"
