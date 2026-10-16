@@ -17,7 +17,7 @@
 #endif
 
 namespace Version {
-    constexpr const char* VERSION = "0.1.1";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
+    constexpr const char* VERSION = "0.1.1";        // Current Relay firmware version based on Semantic Versioning syntax.
 }
 
 // Serial Configuration
