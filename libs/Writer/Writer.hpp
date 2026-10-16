@@ -6,17 +6,18 @@
 #include <vector>
 #include "Measure.hpp"
 
-#define nVersion 1.1.0
-
-// The name of the CSV file to which data will be written
-extern const char filename[];
+#define nVersion 1.2.0
 
 class Writer
 {
     private:
         File file;
+        const char* filename;
         unsigned int next_id = 0;
         int CSPin; 
+
+        // Read the next measurement ID from the last stored record
+        unsigned int GetNextId();
 
         // Append a measurement (of type Measure) to a new line in the CSV file
         void WriteInNewLine(Measure& data);
@@ -25,6 +26,9 @@ class Writer
         bool Reconnect();
 
     public:
+        // Create a writer for the specified CSV file
+        explicit Writer(const char* filename);
+
         // Initialize connection with the SD card using the specified Chip Select (CS) pin
         void EstablishConnection(const int CSpin);
 
