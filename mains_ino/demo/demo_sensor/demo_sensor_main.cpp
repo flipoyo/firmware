@@ -36,10 +36,8 @@ int intervalle_de_mesure_secondes;
 String devEui;
 String appEui;
 
-//std::string FileName = "conf_sen.csv"; Impossible to use that because SD.open() takes squid string arguments
-Writer logger;
+Writer logger("RECORDS.CSV");
 const int CSPin = 5;
-const char filename[] = "RECORDS.CSV";
 const char* configFilePath = "conf.csv";
 int ncapt = 0; 
 

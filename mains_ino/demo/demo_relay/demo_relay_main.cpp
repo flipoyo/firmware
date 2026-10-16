@@ -30,7 +30,7 @@ LoRaModem modem;
 
 LoraWANCommunication loraWAN;
 std::queue<String> sendingQueue;
-Writer logger;
+Writer logger("RECORDS.CSV");
 
 GeneralConfig res;
 
@@ -49,9 +49,6 @@ const char* configFilePath = "conf.csv";
 Waiter waiter; //pour ne pas l'indenter dans le loop
 unsigned long lastSDOffsetConfig = 0;
 unsigned long lastSDOffset = 0;
-const char filename[] = "RECORDS.CSV";
-
-
 // ----- Setup -----
 void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
@@ -196,7 +193,6 @@ void loop() {
     //delay(500) pas de dodo pour la démo
     }
 }
-
 
 
 
