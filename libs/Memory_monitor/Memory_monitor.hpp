@@ -1,0 +1,1 @@
+#define nVersion 1.0.0

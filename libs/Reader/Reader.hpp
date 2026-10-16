@@ -6,6 +6,8 @@
 #include <vector>
 #include <queue>
 
+#define nVersion 1.0.0
+
 // ---- Structures globales ----
 struct SensorConfig {
     String id;
