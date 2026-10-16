@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define nVersion 1.0.1
+#define nVersion 1.0.2
 
 class Waiter
 {

@@ -308,8 +308,3 @@ This library manages timed low-power waits for the Arduino.
 
 `sleepUntil()` accepts a duration in milliseconds. The caller is responsible
 for calculating the time remaining until the next scheduled operation.
-      ┌───────────────┐
-      │ PrintQueue()  │
-      │ - show and.   │
-      │   empty queue │
-      └───────────────┘
