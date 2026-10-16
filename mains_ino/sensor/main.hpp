@@ -50,6 +50,5 @@ namespace Timing {
     constexpr unsigned long SERIAL_STARTUP_TIMEOUT_MS = 5000; // Maximum wait for the serial port.
     constexpr unsigned long SETUP_DELAY_MS = 1000;  // Delay after setup completes.
     constexpr unsigned long CONFIG_UPDATE_TIMEOUT_MS = 15000; // Wait time for a configuration update.
-    constexpr unsigned long SLEEP_TIME_MILLISECONDS = 1000; // Converts sleep seconds to milliseconds for logging.
     constexpr unsigned long SOON_THRESHOLD_MS = 1000; // Threshold for determining if a measurement is imminent.
 }
