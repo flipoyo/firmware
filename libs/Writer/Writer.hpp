@@ -6,7 +6,7 @@
 #include <vector>
 #include "Measure.hpp"
 
-#define nVersion 1.2.0
+#define nVersion 1.2.1
 
 class Writer
 {

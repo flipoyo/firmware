@@ -119,8 +119,8 @@ void Writer::LogData(int ncapteur, const std::vector<double>& toute_mesure, Stri
     SD_LOG("data initialised");
 
     data.id = this->next_id; // Set unique ID for the measurement
-    // Check if the connection is still established
-    bool is_connected = SD.begin(this->CSPin) && this->file;
+    // Check the existing file handle without reinitializing the SD interface.
+    bool is_connected = this->file;
     if (!is_connected) {
         SD_LOG_NO_LN("SD connection lost.");
         SD_LOG_NO_LN("Trying to reconnect ...");
@@ -147,7 +147,8 @@ void Writer::Dispose() {
 }
 
 void Writer::LogString(std::queue<String> receiveQueue) {
-    bool is_connected = SD.begin(this->CSPin) && this->file;
+    // Check the existing file handle without reinitializing the SD interface.
+    bool is_connected = this->file;
 
     if (!is_connected) {
         SD_LOG_NO_LN("SD connection lost.");
