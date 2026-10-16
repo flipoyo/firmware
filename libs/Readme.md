@@ -293,51 +293,21 @@ This file manages the time and measurement schedules for the MKR board-based sys
                                 (loop)
 
 ## *Waiter*
-This file manages the wait time and task synchronization for the Arduino, particularly for LoRa communication and reading/writing to the SD card.
+This library manages timed low-power waits for the Arduino.
 ┌─────────────────────────┐
 │       Waiter            │
 └────────────┬────────────┘
              │
              ▼
-      ┌───────────────┐
-      │ startTimer()  │
-      │ - remembers t0│
-      └───────────────┘
-             │
-             ▼
-      ┌───────────────┐
-      │ sleepUntil()  │
-      │ - calculates  │
-      │ - deepSleep   │
-      └───────────────┘
-             │
-             ▼
-      ┌───────────────┐
-      │ delayUntil()  │
-      └───────────────┘
-             │
- ┌───────────┴───────────┐
- │      Loop active      │
- └───────────┬───────────┘
-             │
-   ┌─────────┴─────────┐
-   │ LoRa communication│
-   │ - startLoRa()     │
-   │ - handshake()     │
-   │ - sendPackets()   │
-   │ - closeSession()  │
-   │ - stopLoRa()      │
-   └─────────┬─────────┘
-             │
-   ┌─────────┴───────────────┐
-   │ SD Reader               │
-   │ - EstablishConnection() │
-   │ - loadDataIntoQueue()   │
-   │ - UpdateCursor()        │
-   │ - Dispose()             │
-   └─────────┬───────────────┘
-             │
-             ▼
+      ┌──────────────────────┐
+      │ sleepUntil(duration) │
+      │ - skips non-positive │
+      │   durations           │
+      │ - enters deep sleep  │
+      └──────────────────────┘
+
+`sleepUntil()` accepts a duration in milliseconds. The caller is responsible
+for calculating the time remaining until the next scheduled operation.
       ┌───────────────┐
       │ PrintQueue()  │
       │ - show and.   │

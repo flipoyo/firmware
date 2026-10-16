@@ -1,9 +1,9 @@
 #ifndef WAITER_HPP
 #define WAITER_HPP
 
-//  #include <cstdint>
+#include <stdint.h>
 
-#define nVersion 1.0.0
+#define nVersion 1.0.1
 
 class Waiter
 {
@@ -13,8 +13,6 @@ public:
 
     void sleepUntil(long desired_waiting_time);
     
-private:
-    uint32_t starting_time;
 };
 
 #endif
