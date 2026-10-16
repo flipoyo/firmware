@@ -141,7 +141,7 @@ Writer is a library that allows you to write data to the SD card:
 
 - Connection management (automatic reconnection in case of loss)
 - Optional debug logs
-- Unique IDs for each measurement
+- Sequential IDs continued from the last stored measurement
 - Standardized CSV formatting and writing to the card
 
 
@@ -342,4 +342,3 @@ This file manages the wait time and task synchronization for the Arduino, partic
       │ - show and.   │
       │   empty queue │
       └───────────────┘
-

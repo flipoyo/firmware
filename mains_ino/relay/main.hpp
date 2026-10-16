@@ -17,7 +17,7 @@
 #endif
 
 namespace Version {
-    constexpr const char* VERSION = "0.1.1";        // Current Relay firmware version based on Semantic Versioning syntax.
+    constexpr const char* VERSION = "1.1.2";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
 }
 
 // Serial Configuration
@@ -41,8 +41,8 @@ namespace LoRaConfig {
 namespace Storage {
     constexpr const char* CONFIG_FILE = "conf.csv";             // File used to load the configuration into the relay
     
-    // "Writer" library currently expects a global 'const char filename[]' in main.cpp, 
-    // so we define RECORDS_FILENAME here to avoid hardcoding "RECORDS.CSV" in two places until "Writer" is refactored.
+    // Writer expects a global 'const char filename[]' in main.cpp, so keep
+    // the shared filename value here without hardcoding it in two places.
     #define RECORDS_FILENAME "RECORDS.CSV"
     constexpr const char RECORDS_FILE[] = RECORDS_FILENAME;     // File used to save the received data from the sensor (or sensors after upscaling to include more than one sensor)
 }

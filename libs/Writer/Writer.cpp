@@ -6,7 +6,6 @@
 
 #include <Arduino.h>
 #include <SD.h>
-#include <string>
 #include <queue>
 
 #include "Writer.hpp"
@@ -22,26 +21,51 @@
 #define SD_LOG_NO_LN(msg)
 #endif
 
-// Define a comma string for separating CSV columns
-const std::string COMA = ";";
+unsigned int GetNextId() {
+    File readInfile = SD.open(filename, FILE_READ);
+    if (!readInfile) {
+        return 0;
+    }
 
-unsigned int GetNextLine() {
-  // TODO : Now, the function counts the number of lines. It would be more stable if it got the index of the last measurement.
+    unsigned long position = readInfile.size();
+    if (position == 0) {
+        readInfile.close();
+        return 0;
+    }
 
-  File readInfile = SD.open(filename); // Open the CSV file in read mode
-  unsigned int number_of_lines = 0; // Counter for the lines
-  if (readInfile) {
-    while (readInfile.available()) {
-      // read an entire csv line (which end is a \n)
-      if (readInfile.read() == '\n') {
-        number_of_lines++;
-      }
-    } 
-  }
-  readInfile.close();
-  return number_of_lines;
+    // Ignore line endings at the end of the file.
+    int character;
+    do {
+        --position;
+        readInfile.seek(position);
+        character = readInfile.read();
+    } while (position > 0 && (character == '\n' || character == '\r'));
+
+    // Find the beginning of the final non-empty line without scanning earlier rows.
+    unsigned long lineStart = position;
+    while (lineStart > 0) {
+        readInfile.seek(lineStart - 1);
+        if (readInfile.read() == '\n') {
+            break;
+        }
+        --lineStart;
+    }
+
+    readInfile.seek(lineStart);
+    String lastLine = readInfile.readStringUntil('\n');
+    readInfile.close();
+
+    int firstSeparator = lastLine.indexOf(';');
+    int secondSeparator = lastLine.indexOf(';', firstSeparator + 1);
+    if (firstSeparator < 0 || secondSeparator < 0) {
+        SD_LOG("Unable to read the last measurement ID.");
+        return 0;
+    }
+
+    String idText = lastLine.substring(firstSeparator + 1, secondSeparator);
+    idText.trim();
+    return static_cast<unsigned int>(idText.toInt()) + 1;
 }
-
 
 // WriteInNewLine: Writes a new line to the CSV file with all the fields from a Measure object
 void Writer::WriteInNewLine(Measure& data){
@@ -79,7 +103,7 @@ void Writer::EstablishConnection(const int CSpin) {
         return;
     }
     SD_LOG_NO_LN("SD initialization done.");
-    this->next_id = GetNextLine();
+    this->next_id = GetNextId();
     this->file = SD.open(filename, FILE_WRITE);
 }
 

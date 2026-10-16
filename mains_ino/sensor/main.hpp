@@ -2,7 +2,8 @@
 #include <stdint.h>
 
 namespace Version {
-    constexpr const char* VERSION = "0.1.1";        // Current Sensor firmware version based on Semantic Versioning syntax.
+    constexpr const char* VERSION = "1.1.3";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
+
 }
 
 namespace SerialConfig {
