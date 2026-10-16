@@ -74,3 +74,6 @@ If you want to flash with Arduino IDE:
 - Sensor details: `hardware/firmware/mains_ino/sensor/README.md`
 - Relay details: `hardware/firmware/mains_ino/relay/README.md`
 - General hardware docs: `hardware/docs/`
+
+## Note on firmware & library Versioning Policy:
+`mains_ino/relay/main.hpp`, `mains_ino/sensor/main.hpp`, and every library inside `libs/<library_name>/main.hpp` track their versions independently using Semantic Versioning (`constexpr const char* VERSION = "MAJOR.MINOR.PATCH";`). Every Pull Request targeting `CGS-MOLO` or `main` runs an automated GitHub Action (`.github/workflows/check-version.yml`) that blocks merging if C++ code in `mains_ino/relay/`, `mains_ino/sensor/`, or any library in `libs/` is modified without incrementing VERSION in that specific folder's `main.hpp` (modifying a library only requires updating that library's `main.hpp`, not the relay or sensor). Increment PATCH for bug fixes or refactoring, MINOR for new backwards-compatible features, and MAJOR for breaking changes.
