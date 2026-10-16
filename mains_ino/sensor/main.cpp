@@ -15,18 +15,6 @@
 
 #include "main.hpp"
 
-#define DEBUG_MAIN
-#define DEBUG_MEASURE
-#define DEBUG_WRITER
-#define DEBUG_READER
-
-#ifdef DEBUG_MAIN
-#define DEBUG_LOG(msg) Serial.println(msg)
-#define DEBUG_LOG_NO_LN(msg) Serial.print(msg)
-#else
-#define DEBUG_LOG(msg)
-#define DEBUG_LOG_NO_LN(msg)
-#endif
 
 Sensor** sens;
 std::vector<double> toute_mesure;
@@ -39,9 +27,7 @@ String devEui;
 String appEui;
 
 
-//std::string FileName = "conf_sen.csv"; Impossible to use that because SD.open() takes squid string arguments
-Writer logger;
-const char filename[] = SENSOR_DATA_FILE_NAME;
+Writer logger(Storage::DATA_FILE_NAME);
 int ncapt = RuntimeDefaults::INITIAL_SENSOR_COUNT;
 
 // LoRa

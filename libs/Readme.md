@@ -139,6 +139,7 @@ The data is returned in the form “ ‘Measure no.’ ID, date, time, measureme
 ## *Writer*
 Writer is a library that allows you to write data to the SD card:
 
+- The target CSV path is provided when constructing a `Writer`
 - Connection management (automatic reconnection in case of loss)
 - Optional debug logs
 - Sequential IDs continued from the last stored measurement

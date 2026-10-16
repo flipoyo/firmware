@@ -18,7 +18,7 @@ LoRaModem modem;
 
 LoraWANCommunication loraWAN;
 std::queue<String> sendingQueue;
-Writer logger;
+Writer logger(Storage::RECORDS_FILE);
 
 GeneralConfig res;
 
@@ -34,7 +34,6 @@ bool modif = false;
 Waiter waiter; //pour ne pas l'indenter dans le loop
 unsigned long lastSDOffsetConfig = 0;
 unsigned long lastSDOffset = 0;
-const char filename[] = RECORDS_FILENAME;
 
 
 // ----- Setup -----
