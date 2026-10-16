@@ -221,8 +221,16 @@ void loop() {
             }
 
             lora.stopLoRa();
+            digitalWrite(LED_BUILTIN, LOW);
         } else {
             Serial.println("Handshake échoué");
+            for (int blink = 0; blink < 5; blink++) {
+            digitalWrite(LED_BUILTIN, HIGH);
+            delay(200);
+            digitalWrite(LED_BUILTIN, LOW);
+            delay(300);
+            }
+
         }
         // --- Sommeil jusqu'à prochaine mesure ---
         Waiter waiter;
@@ -230,11 +238,21 @@ void loop() {
         if (CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes) <= CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes)){
             long time_to_sleep = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes);
             DEBUG_LOG("sleeping until next measure, sleeping for " + String (time_to_sleep)+ "ms");
-            waiter.sleepUntil(CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes));
+            waiter.sleepFor(CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes));
         } else {
             DEBUG_LOG("sleeping until next communication " + String (CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes))+"ms");
-            waiter.sleepUntil(CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes));
+            waiter.sleepFor(CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes));
         }
+
+        #ifdef DEBUG_MAIN
+        for (int blink = 0; blink < 5; blink++) {
+            digitalWrite(LED_BUILTIN, HIGH);
+            delay(100);
+            digitalWrite(LED_BUILTIN, LOW);
+            delay(100);
+        }
+        #endif
+
         // Prevent time variables (current_time) to diverge (time domain is 24 hours, to preserve coherence with GetSecondsSinceMidnight)
         
         if(current_Time >= sec_in_day){
