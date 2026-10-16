@@ -113,6 +113,10 @@ void setup() {
     logger.EstablishConnection(Pins::SD_CHIP_SELECT_PIN);
     InitialiseRTC();
     digitalWrite(LED_BUILTIN, LOW);
+    delay(100);
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(100);
+    digitalWrite(LED_BUILTIN, LOW);
     DEBUG_LOG ("Setup finished");
     delay(Timing::SETUP_DELAY_MS);
 }
@@ -239,11 +243,11 @@ void loop() {
         Waiter waiter;
         DEBUG_LOG("waiter instancié");
         if (CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes) <= CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes)){
-            long time_to_sleep = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes)*Timing::SLEEP_TIME_MILLISECONDS;
+            long time_to_sleep = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes);
             DEBUG_LOG("sleeping until next measure, sleeping for " + String (time_to_sleep)+ "ms");
             waiter.sleepUntil(CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes));
         } else {
-            DEBUG_LOG("sleeping until next communication " + String (CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes)*Timing::SLEEP_TIME_MILLISECONDS)+"ms");
+            DEBUG_LOG("sleeping until next communication " + String (CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes))+"ms");
             waiter.sleepUntil(CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes));
         }
         // Prevent time variables (current_time) to diverge (time domain is 24 hours, to preserve coherence with GetSecondsSinceMidnight)
