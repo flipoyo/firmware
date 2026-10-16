@@ -300,11 +300,11 @@ This library manages timed low-power waits for the Arduino.
              │
              ▼
       ┌──────────────────────┐
-      │ sleepUntil(duration) │
+      │ sleepFor(duration)   │
       │ - skips non-positive │
       │   durations           │
       │ - enters deep sleep  │
       └──────────────────────┘
 
-`sleepUntil()` accepts a duration in milliseconds. The caller is responsible
+`sleepFor()` accepts a duration in milliseconds. The caller is responsible
 for calculating the time remaining until the next scheduled operation.

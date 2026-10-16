@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define nVersion 1.0.2
+#define nVersion 2.0.0
 
 class Waiter
 {
@@ -11,7 +11,7 @@ public:
     // Default constructor, no setup needed here
     Waiter();
 
-    void sleepUntil(long desired_waiting_time);
+    void sleepFor(long waiting_interval);
     
 };
 
