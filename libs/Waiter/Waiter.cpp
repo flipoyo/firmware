@@ -35,6 +35,11 @@ Waiter::Waiter() {}
 // Sleep the Arduino until the desired waiting time passes
 void Waiter::sleepUntil(long waiting_interval) {
 
+    if (waiting_interval <= 0) {
+        DEBUG_LOG("Sleep skipped because the requested interval is not positive");
+        return;
+    }
+
     DEBUG_LOG("Sleeping for " + String(waiting_interval) + " ms");
     // Sleep for the calculated time
     unsigned long waiting_interval_unsigned = (unsigned long) waiting_interval;
