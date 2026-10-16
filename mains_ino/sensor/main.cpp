@@ -14,7 +14,6 @@
 #include "Reader.hpp"
 
 #include "main.hpp"
-#include "version.hpp"
 
 #define DEBUG_MAIN
 #define DEBUG_MEASURE
@@ -68,7 +67,7 @@ void setup() {
     while (!Serial && millis() < end_date) {}
     
     Serial.print("Sensor Firmware Version: ");
-    Serial.println(SensorVersion::VERSION);
+    Serial.println(Version::VERSION);
 
     DEBUG_LOG("\n\n\n\n");
     // Lecture de la configuration CSV

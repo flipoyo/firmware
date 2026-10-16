@@ -1,6 +1,11 @@
 #pragma once
 #include <stdint.h>
 
+namespace Version {
+    constexpr const char* VERSION = "0.1.1";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
+
+}
+
 namespace SerialConfig {
     constexpr uint32_t BAUD_RATE = 115200;          // Default serial communication speed.
 }

@@ -16,6 +16,10 @@
     #define DEBUG_LOG_NO_LN(msg)
 #endif
 
+namespace Version {
+    constexpr const char* VERSION = "0.1.1";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
+}
+
 // Serial Configuration
 namespace SerialConfig {
     constexpr uint32_t BAUD_RATE = 9600;

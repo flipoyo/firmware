@@ -11,7 +11,6 @@
 #include "Time.hpp"
 #include "Writer.hpp"
 
-#include "version.hpp"
 #include "main.hpp"
 
 
@@ -50,7 +49,7 @@ void setup() {
     Serial.println("\n=== Initialisation du Relais Molonari ===");
 
     Serial.print("Relay Firmware Version: ");
-    Serial.println(RelayVersion::VERSION);
+    Serial.println(Version::VERSION);
 
 
     // Lecture configuration CSV
