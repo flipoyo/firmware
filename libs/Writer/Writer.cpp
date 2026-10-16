@@ -21,8 +21,11 @@
 #define SD_LOG_NO_LN(msg)
 #endif
 
-unsigned int GetNextId() {
-    File readInfile = SD.open(filename, FILE_READ);
+Writer::Writer(const char* filename)
+    : filename(filename), CSPin(-1) {}
+
+unsigned int Writer::GetNextId() {
+    File readInfile = SD.open(this->filename, FILE_READ);
     if (!readInfile) {
         return 0;
     }
@@ -90,7 +93,7 @@ bool Writer::Reconnect() {
     if (!SD.begin(this->CSPin)) {
         return false;
     }
-    this->file = SD.open(filename, FILE_WRITE);
+    this->file = SD.open(this->filename, FILE_WRITE);
     return this->file;
 }
 
@@ -103,8 +106,8 @@ void Writer::EstablishConnection(const int CSpin) {
         return;
     }
     SD_LOG_NO_LN("SD initialization done.");
-    this->next_id = GetNextId();
-    this->file = SD.open(filename, FILE_WRITE);
+    this->next_id = this->GetNextId();
+    this->file = SD.open(this->filename, FILE_WRITE);
 }
 
 // LogData: Processes raw data, applies a timestamp, and writes it to the CSV file as a new entry

@@ -17,7 +17,7 @@
 #endif
 
 namespace Version {
-    constexpr const char* VERSION = "1.1.2";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
+    constexpr const char* VERSION = "1.1.3";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
 }
 
 // Serial Configuration
@@ -40,9 +40,5 @@ namespace LoRaConfig {
 // SD card file paths
 namespace Storage {
     constexpr const char* CONFIG_FILE = "conf.csv";             // File used to load the configuration into the relay
-    
-    // Writer expects a global 'const char filename[]' in main.cpp, so keep
-    // the shared filename value here without hardcoding it in two places.
-    #define RECORDS_FILENAME "RECORDS.CSV"
-    constexpr const char RECORDS_FILE[] = RECORDS_FILENAME;     // File used to save the received data from the sensor (or sensors after upscaling to include more than one sensor)
+    constexpr const char RECORDS_FILE[] = "RECORDS.CSV";        // File used to save the received data from the sensor (or sensors after upscaling to include more than one sensor)
 }

@@ -1,8 +1,22 @@
 #pragma once
 #include <stdint.h>
 
+#define DEBUG_MAIN
+#define DEBUG_MEASURE
+#define DEBUG_WRITER
+#define DEBUG_READER
+
+#ifdef DEBUG_MAIN
+#define DEBUG_LOG(msg) Serial.println(msg)
+#define DEBUG_LOG_NO_LN(msg) Serial.print(msg)
+#else
+#define DEBUG_LOG(msg)
+#define DEBUG_LOG_NO_LN(msg)
+#endif
+
+
 namespace Version {
-    constexpr const char* VERSION = "1.1.3";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
+    constexpr const char* VERSION = "1.1.4";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
 
 }
 
@@ -18,8 +32,7 @@ namespace Pins {
 }
 
 namespace Storage {
-    #define SENSOR_DATA_FILE_NAME "RECORDS.CSV"
-    constexpr char DATA_FILE_NAME[] = SENSOR_DATA_FILE_NAME; // File containing recorded measurements.
+    constexpr char DATA_FILE_NAME[] = "RECORDS.CSV"; // File containing recorded measurements.
     constexpr const char* CONFIG_FILE_PATH = "conf.csv"; // Configuration file path.
 }
 
