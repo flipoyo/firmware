@@ -3,6 +3,7 @@
 
 //  #include <cstdint>
 
+#define nVersion 1.0.0
 
 class Waiter
 {

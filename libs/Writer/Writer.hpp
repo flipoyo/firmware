@@ -4,6 +4,8 @@
 #include <SD.h>
 #include "Measure.hpp"
 
+#define nVersion 1.0.0
+
 // The name of the CSV file to which data will be written
 extern const char filename[];
 

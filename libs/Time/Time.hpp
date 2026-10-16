@@ -4,6 +4,8 @@
 #include <RTClib.h>
 #include <vector>
 
+#define nVersion 1.0.0
+
 // ----- RTC -----
 extern RTC_PCF8523 externalRtc;
 extern std::vector<unsigned long> measurementTimesVec;

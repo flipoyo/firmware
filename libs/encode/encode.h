@@ -9,6 +9,8 @@
 #error Regenerate this file with the current version of nanopb generator.
 #endif
 
+#define nVersion 1.0.0
+
 /* Struct definitions */
 typedef struct _SensorData {
     char UI[16];

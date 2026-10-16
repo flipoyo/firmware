@@ -1,6 +1,10 @@
 #pragma once
 #include <stdint.h>
 
+namespace Version {
+    constexpr const char* VERSION = "0.1.1";        // Current Sensor firmware version based on Semantic Versioning syntax.
+}
+
 namespace SerialConfig {
     constexpr uint32_t BAUD_RATE = 115200;          // Default serial communication speed.
 }

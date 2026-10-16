@@ -16,6 +16,10 @@
     #define DEBUG_LOG_NO_LN(msg)
 #endif
 
+namespace Version {
+    constexpr const char* VERSION = "0.1.1";        // Current Relay firmware version based on Semantic Versioning syntax.
+}
+
 // Serial Configuration
 namespace SerialConfig {
     constexpr uint32_t BAUD_RATE = 9600;

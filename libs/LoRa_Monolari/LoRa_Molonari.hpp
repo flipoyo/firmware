@@ -1,4 +1,4 @@
- #ifndef LORA_HPP
+#ifndef LORA_HPP
 #define LORA_HPP
 
 #include <Arduino.h>
@@ -7,6 +7,8 @@
 #include <unordered_set>
 
 #include <Reader.hpp>
+
+#define nVersion 1.0.0
 
 enum RequestType : uint8_t {
     SYN  = 0xcc,
