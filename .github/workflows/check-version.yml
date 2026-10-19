@@ -51,7 +51,7 @@ jobs:
           extract_semver() {          # semver = Semantic Versioning
             local content="$1"        # Saves the first argument in variable `content`
             # echo loads main.hpp as text => first grep searches for the line containing `VERSION =` => second grep extracts the "X.Y.Z" numbers
-            echo "$content" | grep -E 'VERSION\s*=' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1
+            echo "$content" | grep -E '(VERSION|nVersion)\s*=' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1
           }
 
           # Helper function: checks that target main.hpp has a strictly greater VERSION than on the base branch
@@ -88,7 +88,7 @@ jobs:
 
             # Checks if any of the two vars are empty (-z returns true if the var is empty)
             if [[ -z "$OLD_VER" || -z "$NEW_VER" ]]; then
-              echo "::error::Could not parse VERSION = \"MAJOR.MINOR.PATCH\" from ${version_file}. Keep the standard format."
+              echo "::error::Could not parse VERSION or nVersion = \"MAJOR.MINOR.PATCH\" from ${version_file}. Keep the standard format."
               exit 1
             fi
 
