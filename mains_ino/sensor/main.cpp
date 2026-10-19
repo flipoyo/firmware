@@ -29,8 +29,6 @@ String appEui;
 
 Writer logger(Storage::DATA_FILE_NAME);
 int ncapt = RuntimeDefaults::INITIAL_SENSOR_COUNT;
-long timeUntilNextMeasure;
-long timeUntilNextCommunication;
 
 // LoRa
 LoraCommunication lora(LoRaConfig::FREQUENCY_HZ, devEui, appEui, RoleType::SLAVE);
@@ -41,6 +39,7 @@ unsigned long lastSDOffset = RuntimeDefaults::INITIAL_SD_OFFSET;
 uint16_t newMeasureInterval = MeasurementConfig::INITIAL_INTERVAL;
 uint16_t newLoraInterval = LoRaConfig::INITIAL_INTERVAL;
 
+const long sec_in_day = MeasurementConfig::SECONDS_IN_DAY;
 bool rattrapage = RuntimeDefaults::INITIAL_RATTRAPAGE;
 bool a_line_remains_to_log = RuntimeDefaults::INITIAL_LINE_REMAINS_TO_LOG;
 
@@ -119,7 +118,7 @@ void loop() {
     // --- Prendre mesures ---
     long current_Time=GetSecondsSinceMidnight();
     DEBUG_LOG("Temps actuel : " + String(current_Time));
-    bool IsTimeToMeasure = (CalculateElapsedSeconds(current_Time, lastMeasure) >= (intervalle_de_mesure_secondes - MeasurementConfig::INTERVAL_TOLERANCE_SECONDS));
+    bool IsTimeToMeasure = ((current_Time - lastMeasure) >= (intervalle_de_mesure_secondes - MeasurementConfig::INTERVAL_TOLERANCE_SECONDS));
     
     DEBUG_LOG("ncapt : " + String(ncapt)); //so far
 
@@ -138,7 +137,7 @@ void loop() {
         a_line_remains_to_log = true;
         digitalWrite(LED_BUILTIN, LOW);
     }else{
-        DEBUG_LOG("Not time to measure yet : elapsed time = " + String(CalculateElapsedSeconds(current_Time, lastMeasure)) + " ; intervalle_de_mesure_secondes - tolerance = " + String(intervalle_de_mesure_secondes - MeasurementConfig::INTERVAL_TOLERANCE_SECONDS));
+        DEBUG_LOG("Not time to measure yet : current_Time - lastMeasure = " + String(current_Time - lastMeasure) + " ; intervalle_de_mesure_secondes - tolerance = " + String(intervalle_de_mesure_secondes - MeasurementConfig::INTERVAL_TOLERANCE_SECONDS));
     }
 
     
@@ -152,7 +151,7 @@ void loop() {
 
     // --- Envoyer LoRa si intervalle atteint ---
     
-    bool IsTimeToLoRa = (CalculateElapsedSeconds(current_Time, lastLoRaSend) >= (lora_intervalle_secondes - LoRaConfig::INTERVAL_TOLERANCE_SECONDS));
+    bool IsTimeToLoRa = ((current_Time - lastLoRaSend) >= (lora_intervalle_secondes - LoRaConfig::INTERVAL_TOLERANCE_SECONDS));
 
     if (IsTimeToLoRa || rattrapage) {
         digitalWrite(LED_BUILTIN, HIGH);
@@ -171,11 +170,10 @@ void loop() {
         uint8_t id = LoRaConfig::INITIAL_HANDSHAKE_ID;
         if (lora.handshake(id)) {
             Serial.println("HANDSHAKE DONE\n");
-            timeUntilNextMeasure = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes);
-            DEBUG_LOG("CalculateSleepTimeUntilNextMeasurement : " + String(timeUntilNextMeasure) + "ms");
+            DEBUG_LOG("CalculateSleepTimeUntilNextMeasurement : " + String(CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes)));
 
             DEBUG_LOG(String(dataFile.available()));
-            bool time_to_mesure_soon = timeUntilNextMeasure < Timing::SOON_THRESHOLD_MS;
+            bool time_to_mesure_soon = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes) < Timing::SOON_THRESHOLD_MS;
             if(time_to_mesure_soon){
                 DEBUG_LOG("Aborting LoRa send, measurement scheduled soon. Switching to rattrapage mode");
                 lora.closeSession(LoRaConfig::INITIAL_SESSION_PACKET);
@@ -237,16 +235,13 @@ void loop() {
         // --- Sommeil jusqu'à prochaine mesure ---
         Waiter waiter;
         DEBUG_LOG("waiter instancié");
-        timeUntilNextMeasure = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes);
-        timeUntilNextCommunication = CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes);
-        
-        if (timeUntilNextMeasure <= timeUntilNextCommunication){
-            long time_to_sleep = timeUntilNextMeasure;
+        if (CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes) <= CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes)){
+            long time_to_sleep = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes);
             DEBUG_LOG("sleeping until next measure, sleeping for " + String (time_to_sleep)+ "ms");
-            waiter.sleepFor(timeUntilNextMeasure);
+            waiter.sleepFor(CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes));
         } else {
-            DEBUG_LOG("sleeping until next communication " + String (timeUntilNextCommunication)+"ms");
-            waiter.sleepFor(timeUntilNextCommunication);
+            DEBUG_LOG("sleeping until next communication " + String (CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes))+"ms");
+            waiter.sleepFor(CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes));
         }
 
         #ifdef DEBUG_MAIN
@@ -258,6 +253,13 @@ void loop() {
         }
         #endif
 
+        // Prevent time variables (current_time) to diverge (time domain is 24 hours, to preserve coherence with GetSecondsSinceMidnight)
+        
+        if(current_Time >= sec_in_day){
+            lastLoRaSend -= current_Time;
+            lastMeasure -= current_Time;
+            current_Time = RuntimeDefaults::INITIAL_CURRENT_TIME;
+        }
         digitalWrite(LED_BUILTIN, LOW);
     }
 }
