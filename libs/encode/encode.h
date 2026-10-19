@@ -9,11 +9,11 @@
 #error Regenerate this file with the current version of nanopb generator.
 #endif
 
-#define nVersion 1.0.0
+#define nVersion 1.0.1
 
 /* Struct definitions */
 typedef struct _SensorData {
-    char UI[16];
+    char UI[17];                // The unique identifier (EUI) is composed of 16 chars + 1 character for the terminating `\0`
     int32_t time;
     pb_size_t measurements_count;
     float measurements[10];
