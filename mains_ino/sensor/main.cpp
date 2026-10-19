@@ -53,8 +53,8 @@ void setup() {
     unsigned long end_date = millis() + Timing::SERIAL_STARTUP_TIMEOUT_MS;
     while (!Serial && millis() < end_date) {}
     
-    Serial.print("Sensor Firmware Version: ");
-    Serial.println(Version::VERSION);
+    DEBUG_LOG_NO_LN("Sensor Firmware Version: ");
+    DEBUG_LOG(Version::VERSION);
 
     DEBUG_LOG("\n\n\n\n");
     // Lecture de la configuration CSV
@@ -170,7 +170,7 @@ void loop() {
 
         uint8_t id = LoRaConfig::INITIAL_HANDSHAKE_ID;
         if (lora.handshake(id)) {
-            Serial.println("HANDSHAKE DONE\n");
+            DEBUG_LOG("HANDSHAKE DONE\n");
             timeUntilNextMeasure = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes);
             DEBUG_LOG("CalculateSleepTimeUntilNextMeasurement : " + String(timeUntilNextMeasure) + "ms");
 
@@ -225,7 +225,7 @@ void loop() {
             lora.stopLoRa();
             digitalWrite(LED_BUILTIN, LOW);
         } else {
-            Serial.println("Handshake échoué");
+            DEBUG_LOG("Handshake échoué");
             for (int blink = 0; blink < 5; blink++) {
             digitalWrite(LED_BUILTIN, HIGH);
             delay(200);

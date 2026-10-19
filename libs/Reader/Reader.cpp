@@ -6,6 +6,7 @@
 #include <queue>
 
 // ----- Debug macros -----
+#define DEBUG_READER
 #ifdef DEBUG_READER
 #define SD_LOG(msg) Serial.print(msg)
 #define SD_LOG_LN(msg) Serial.println(msg)
@@ -22,19 +23,19 @@ unsigned int Reader::line_cursor = 0;
 GeneralConfig Reader::lireConfigCSV(const char* NomFichier, int CSPin) {
     GeneralConfig res = GeneralConfig();
     if (!SD.begin(CSPin)) {
-        Serial.println("Impossible de monter SD");
+        SD_LOG_LN("Impossible de monter SD");
         res.succes = false;
         return res;
     }
 
     File f = SD.open(NomFichier);
     if (!f) {
-        Serial.println("Fichier CSV non trouvé, utilisation des valeurs par défaut");
+        SD_LOG_LN("Fichier CSV non trouvé, utilisation des valeurs par défaut");
         res.succes = false;
         return res;
     }
 
-    Serial.println("Lecture du fichier de configuration...");
+    SD_LOG_LN("Lecture du fichier de configuration...");
 
     while (f.available()) {
         String line = f.readStringUntil('\n');
@@ -71,8 +72,8 @@ GeneralConfig Reader::lireConfigCSV(const char* NomFichier, int CSPin) {
                 res.int_config.lora_intervalle_secondes = val.toInt();
             }
             else {
-                Serial.print("Clé inconnue ignorée : ");
-                Serial.println(key);
+                SD_LOG("Clé inconnue ignorée : ");
+                SD_LOG_LN(key);
             }
         }
 
@@ -92,16 +93,16 @@ GeneralConfig Reader::lireConfigCSV(const char* NomFichier, int CSPin) {
         }
 
         else {
-            Serial.print("Ligne ignorée : ");
-            Serial.println(line);
+            SD_LOG("Ligne ignorée : ");
+            SD_LOG_LN(line);
         }
     }
 
     f.close();
     res.succes = true;
-    Serial.println("Configuration chargée avec succès.");
-    Serial.print("→ Capteurs trouvés : ");
-    Serial.println(res.liste_capteurs.size());
+    SD_LOG_LN("Configuration chargée avec succès.");
+    SD_LOG("→ Capteurs trouvés : ");
+    SD_LOG_LN(res.liste_capteurs.size());
 
     return res;
 }

@@ -396,7 +396,7 @@ bool LoraCommunication::receiveConfigUpdate(const char* filepath, uint16_t* outM
     std::vector<String> newConfigLines; // stockage temporaire des lignes
     std::queue<String> receiveQueue;
 
-    Serial.println("Écoute de la nouvelle configuration LoRa...");
+    DEBUG_LOG("Écoute de la nouvelle configuration LoRa...");
 
     unsigned long start = millis();
     while (millis() - start < timeout_ms) {
@@ -424,8 +424,8 @@ bool LoraCommunication::receiveConfigUpdate(const char* filepath, uint16_t* outM
             const char* tmpPath = "tmp_conf.csv";
             File tmp = SD.open(tmpPath, FILE_WRITE | O_TRUNC);
             if (!tmp) {
-                Serial.print("Impossible d'ouvrir ");
-                Serial.println(tmpPath);
+                DEBUG_LOG_NO_LN("Impossible d'ouvrir ");
+                DEBUG_LOG(tmpPath);
                 return false;
             }
 
@@ -439,18 +439,18 @@ bool LoraCommunication::receiveConfigUpdate(const char* filepath, uint16_t* outM
             // Sinon on réécrit:
             if (!SD.remove(filepath)) {
                 // si le fichier n'existait pas, remove peut échouer mais ce n'est pas fatal
-                Serial.println("Warning: ancienne conf non supprimée (peut ne pas exister).");
+                DEBUG_LOG("Warning: ancienne conf non supprimée (peut ne pas exister).");
             }
 
             File newF = SD.open(filepath, FILE_WRITE | O_TRUNC);
             if (!newF) {
-                Serial.print("Impossible de créer ");
-                Serial.println(filepath);
+                DEBUG_LOG_NO_LN("Impossible de créer ");
+                DEBUG_LOG(filepath);
                 return false;
             }
             File tmpRead = SD.open(tmpPath, FILE_READ);
             if (!tmpRead) {
-                Serial.println("Impossible d'ouvrir tmp pour lecture");
+                DEBUG_LOG("Impossible d'ouvrir tmp pour lecture");
                 newF.close();
                 return false;
             }
@@ -462,7 +462,7 @@ bool LoraCommunication::receiveConfigUpdate(const char* filepath, uint16_t* outM
             SD.remove(tmpPath);
             
 
-            Serial.println("Réception de la config terminée, fichier mis à jour.");
+            DEBUG_LOG("Réception de la config terminée, fichier mis à jour.");
 
             // Parser les lignes reçues pour extraire les intervalles
             for (auto &line : newConfigLines) {
@@ -491,7 +491,7 @@ bool LoraCommunication::receiveConfigUpdate(const char* filepath, uint16_t* outM
         }
     } // fin timeout
 
-    Serial.println("Timeout: pas de configuration complète reçue.");
+    DEBUG_LOG("Timeout: pas de configuration complète reçue.");
     return false;
 }
 
@@ -499,7 +499,7 @@ bool LoraCommunication::receiveConfigUpdate(const char* filepath, uint16_t* outM
 
     File file = SD.open("conf.csv", FILE_READ);
     if (!file) {
-        Serial.println("ERREUR : impossible de lire conf.csv");
+        DEBUG_LOG("ERREUR : impossible de lire conf.csv");
         return;
     }
 
@@ -520,7 +520,7 @@ bool LoraCommunication::receiveConfigUpdate(const char* filepath, uint16_t* outM
     
     file = SD.open("conf.csv", FILE_WRITE | O_TRUNC);
     if (!file) {
-        Serial.println("ERREUR : impossible d'écrire conf.csv");
+        DEBUG_LOG("ERREUR : impossible d'écrire conf.csv");
         return;
     }
 
@@ -529,5 +529,5 @@ bool LoraCommunication::receiveConfigUpdate(const char* filepath, uint16_t* outM
     }
 
     file.close();
-    Serial.println("Fichier conf.csv mis à jour sans toucher aux autres paramètres.");
+    DEBUG_LOG("Fichier conf.csv mis à jour sans toucher aux autres paramètres.");
 }*/

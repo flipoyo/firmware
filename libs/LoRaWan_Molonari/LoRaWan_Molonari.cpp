@@ -10,6 +10,7 @@
 #include "LoRaWan_Molonari.hpp"
 #include <Reader.hpp>
 
+#define LORA_DEBUG
 #ifdef LORA_DEBUG
 #define LORA_LOG(msg) Serial.print(msg);
 #define LORA_LOG_HEX(msg) Serial.print(msg, HEX);
@@ -23,16 +24,16 @@
 LoraWANCommunication::LoraWANCommunication() {}
 
 bool LoraWANCommunication::begin(const String& appEui, const String& appKey) {
-    Serial.println("appKey : " + appKey);
+    LORA_LOG_LN("appKey : " + appKey);
     if (!modem.begin(EU868)) {
-        Serial.println("Échec initialisation module LoRaWAN");
+        LORA_LOG_LN("Échec initialisation module LoRaWAN");
         return false;
     }
 
     int connected = modem.joinOTAA(appEui, appKey);
-    Serial.println("Le statut de la connexion est celui-ci :  " + String(connected));
+    LORA_LOG_LN("Le statut de la connexion est celui-ci :  " + String(connected));
     if (!connected) {
-        Serial.println("Échec de la connexion LoRaWAN");
+        LORA_LOG_LN("Échec de la connexion LoRaWAN");
         return false;
     }
 
@@ -111,14 +112,14 @@ bool encode(uint8_t *outBuffer, size_t outSize, size_t &messageLength, String in
     // --- Encodage Protobuf ---
     pb_ostream_t stream = pb_ostream_from_buffer(outBuffer, outSize);
     if (!pb_encode(&stream, SensorData_fields, &msg)) {
-        Serial.println("Protobuf encoding error!");
+        LORA_LOG_LN("Protobuf encoding error!");
         return false;
     }
 
     messageLength = stream.bytes_written;
-    Serial.print("Binary payload (length ");
-    Serial.print(messageLength);
-    Serial.println(" bytes) ready to send!");
+    LORA_LOG("Binary payload (length ");
+    LORA_LOG(messageLength);
+    LORA_LOG_LN(" bytes) ready to send!");
     return true;
 }
 
@@ -134,17 +135,17 @@ bool LoraWANCommunication::sendQueue(std::queue<String>& sendingQueue) {
             modem.print(payload);
             err = modem.endPacket(true);
             if (err <= 0) {
-                Serial.println("payload : " + payload);
-                Serial.println("Erreur d’envoi, nouvelle tentative...");
+                LORA_LOG_LN("payload : " + payload);
+                LORA_LOG_LN("Erreur d’envoi, nouvelle tentative...");
                 delay(10000);
             }
         } while (err <= 0 && ++retries < 6);
 
         if (err > 0) {
-            Serial.println("Donnée envoyée : " + payload);
+            LORA_LOG_LN("Donnée envoyée : " + payload);
             sendingQueue.pop();
         } else {
-            Serial.println("Échec après plusieurs tentatives, abandon du paquet.");
+            LORA_LOG_LN("Échec après plusieurs tentatives, abandon du paquet.");
             return false;
         }
         delay(5000);
@@ -162,10 +163,10 @@ bool LoraWANCommunication::sendAllPacketsAndManageMemoryWAN(std::queue<memory_li
         size_t messageLength = 0;
         
         memory_line packet = sendQueue.front();
-        Serial.print("Sending packet with data: " + packet.flush + "\n");
+        LORA_LOG("Sending packet with data: " + packet.flush + "\n");
 
         if (!encode(buffer, sizeof(buffer), messageLength, packet.flush)) {
-            Serial.println("Error, payload pas encodé at all (du tout)");
+            LORA_LOG_LN("Error, payload pas encodé at all (du tout)");
             delay(10000);
             return false;
         }
@@ -180,20 +181,20 @@ bool LoraWANCommunication::sendAllPacketsAndManageMemoryWAN(std::queue<memory_li
 
             err = modem.endPacket(true);
             if (err <= 0) {
-                Serial.println("échec d'envoi de : " + packet.flush);
-                Serial.println("Erreur d’envoi, nouvelle tentative...");
+                LORA_LOG_LN("échec d'envoi de : " + packet.flush);
+                LORA_LOG_LN("Erreur d’envoi, nouvelle tentative...");
                 delay(1000);//remettre à 10 000 après les tetst
             }
             send_retries++;
         }
     
         if (err > 0) {
-            Serial.println("Donnée envoyée : " + packet.flush);
+            LORA_LOG_LN("Donnée envoyée : " + packet.flush);
             sendQueue.pop();
             SDOffset = packet.memory_successor;
 
         } else {
-            Serial.println("Échec après plusieurs tentatives, abandon du paquet.");
+            LORA_LOG_LN("Échec après plusieurs tentatives, abandon du paquet.");
             dataFile.seek(SDOffset);
             return false;
         }
@@ -206,8 +207,8 @@ bool LoraWANCommunication::sendAllPacketsAndManageMemoryWAN(std::queue<memory_li
 
 bool LoraWANCommunication::receiveConfig(const char* configFilePath, bool modif) {
     String rcv = modem.readString();
-    Serial.print("↓ Message reçu en downlink : ");
-    Serial.println(rcv);
+    LORA_LOG("↓ Message reçu en downlink : ");
+    LORA_LOG_LN(rcv);
 
     const char* tmpPath = "tmp_conf.csv";
     File tmp = SD.open(tmpPath, FILE_WRITE | O_TRUNC);
@@ -216,13 +217,13 @@ bool LoraWANCommunication::receiveConfig(const char* configFilePath, bool modif)
     
     File newF = SD.open(configFilePath, FILE_WRITE | O_TRUNC);
     if (!newF) {
-        Serial.print("Impossible de créer ");
-        Serial.println(configFilePath);
+        LORA_LOG("Impossible de créer ");
+        LORA_LOG_LN(configFilePath);
         return false;
     }
     File tmpRead = SD.open(tmpPath, FILE_READ);
     if (!tmpRead) {
-        Serial.println("Impossible d'ouvrir tmp pour lecture");
+        LORA_LOG_LN("Impossible d'ouvrir tmp pour lecture");
         newF.close();
         return false;
     }

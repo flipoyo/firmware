@@ -45,30 +45,30 @@ void setup() {
     unsigned long end_date = millis() + SerialConfig::TIMEOUT_MS;
     while (!Serial && millis() < end_date) {}
 
-    Serial.println("\n=== Initialisation du Relais Molonari ===");
+    DEBUG_LOG("\n=== Initialisation du Relais Molonari ===");
 
-    Serial.print("Relay Firmware Version: ");
-    Serial.println(Version::VERSION);
+    DEBUG_LOG_NO_LN("Relay Firmware Version: ");
+    DEBUG_LOG(Version::VERSION);
 
 
     // Lecture configuration CSV
     Reader reader;
     res=reader.lireConfigCSV(Storage::CONFIG_FILE, Pins::SD_CS);
-    Serial.println("Configuration chargée.");
+    DEBUG_LOG("Configuration chargée.");
 
     // Initialisation LoRa communication
     lora.LoraUpdateAttributes(LoRaConfig::FREQUENCY_Hz, res.rel_config.appEui, res.rel_config.devEui, RoleType::MASTER);
 
     // Vérification SD
     if (!SD.begin(res.rel_config.CSPin)) {
-        Serial.println("Erreur SD - arrêt système.");
+        DEBUG_LOG("Erreur SD - arrêt système.");
         while (true) {}
     }
 
     InitialiseRTC();
     logger.EstablishConnection(Pins::SD_CS);
 
-    Serial.println("Initialisation terminée !");
+    DEBUG_LOG("Initialisation terminée !");
     pinMode(LED_BUILTIN, INPUT_PULLDOWN);
     digitalWrite(LED_BUILTIN, LOW);
 }
@@ -116,7 +116,7 @@ void loop() {
 
             logger.LogString(receiveQueue); 
         } else {
-            Serial.println("Handshake échoué, aucune donnée reçue.");
+            DEBUG_LOG("Handshake échoué, aucune donnée reçue.");
             lora.stopLoRa();
 
             // Met quand même à jour lastAttempt pour réessayer après l'intervalle de temps
@@ -134,8 +134,8 @@ void loop() {
         }
 
         if (loraWAN.begin(res.rel_config.appEui, res.rel_config.appKey)) {
-            Serial.println("appKey : " + String(res.rel_config.appKey));
-            Serial.println("temps avant communication : " + String(CalculateSleepTimeUntilNextCommunication(lastAttempt, res.int_config.lora_intervalle_secondes)));
+            DEBUG_LOG("appKey : " + String(res.rel_config.appKey));
+            DEBUG_LOG("temps avant communication : " + String(CalculateSleepTimeUntilNextCommunication(lastAttempt, res.int_config.lora_intervalle_secondes)));
 
 
             while (CalculateSleepTimeUntilNextCommunication(lastAttempt, res.int_config.lora_intervalle_secondes) > LoRaConfig::MIN_SLEEP_MS && dataFile.available()) { //racourcir de Radio::MIN_SLEEP_MS à 10000 pour les besoins de la démo
@@ -157,16 +157,16 @@ void loop() {
                     }
                 }
                 if (loraWAN.sendAllPacketsAndManageMemoryWAN(linesToSend, lastSDOffset, dataFile)) {
-                    Serial.println("Tous les paquets ont été envoyés !");
+                    DEBUG_LOG("Tous les paquets ont été envoyés !");
                 } else {
-                    Serial.println("Certains paquets n’ont pas pu être envoyés, ils seront réessayés.");
+                    DEBUG_LOG("Certains paquets n’ont pas pu être envoyés, ils seront réessayés.");
                 }
             }    
 
             dataFile.close();
 
         } else {
-            Serial.println("Connexion LoRaWAN impossible, report de l’envoi.");
+            DEBUG_LOG("Connexion LoRaWAN impossible, report de l’envoi.");
         }
         lastLoraSend = currentTime;
     

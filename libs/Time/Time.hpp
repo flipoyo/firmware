@@ -4,7 +4,7 @@
 #include <RTClib.h>
 #include <vector>
 
-#define nVersion 1.1.0
+#define nVersion 1.1.1
 
 // ----- RTC -----
 extern RTC_PCF8523 externalRtc;

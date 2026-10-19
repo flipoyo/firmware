@@ -8,6 +8,13 @@
 #include "Time.hpp"
 #include "Reader.hpp"
 
+#define DEBUG_TIME
+#ifdef DEBUG_TIME
+#define DEBUG_LOG(msg) Serial.println(msg)
+#else
+#define DEBUG_LOG(msg)
+#endif
+
 namespace {
   const long TIME_SECONDS_PER_DAY = 24L * 60L * 60L;
 }
@@ -27,13 +34,13 @@ std::vector<unsigned long> communicationTimesVec;
 
 void InitialiseRTC() {
   if (!externalRtc.begin()) {
-    Serial.println("Erreur lors de l'initialisation de la RTC externe !");
+    DEBUG_LOG("Erreur lors de l'initialisation de la RTC externe !");
   }
   if (externalRtc.lostPower()) {
     
     externalRtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
-  Serial.println("RTC externe initialisée.");
+  DEBUG_LOG("RTC externe initialisée.");
 }
 
 
