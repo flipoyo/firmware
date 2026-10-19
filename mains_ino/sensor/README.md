@@ -90,7 +90,10 @@ c) LoRa Transmission
 
 d) Sleep Management
 - Calculates the time remaining until the next measurement or LoRa communication.
-- Puts the Arduino into sleep mode using Waiter.sleepUntil() to save energy.
+- Puts the Arduino into deep sleep for that duration, in milliseconds, using
+  Waiter.sleepFor() to save energy.
+- When the sensor wakes up, the built-in LED blinks five times. Each on and off
+  period lasts 100 ms; this is intended for debugging.
 
 ---
 
