@@ -284,7 +284,8 @@ uint8_t LoraCommunication::sendAllPacketsAndManageMemory(std::queue<memory_line>
             sendPacket(nb_packets_sent, DATA, packet.flush);
             int receive_retries = 0;
             while (receive_retries < 6 && !bien_recu) {
-                if (receivePacket(nb_packets_sent_received, requestType, payload) && requestType == ACK && payload == packet.flush) {
+                bool packetReceived = receivePacket(nb_packets_sent_received, requestType, payload);
+                if (packetReceived && requestType == ACK && payload == packet.flush) {
                     sendQueue.pop();
                     DEBUG_LOG_NO_LN("Packet sent was acknowledged. cursor before increment: " + String(SDOffset));
                     nb_packets_sent++;
@@ -296,7 +297,7 @@ uint8_t LoraCommunication::sendAllPacketsAndManageMemory(std::queue<memory_line>
                 #ifdef DEBUG_LORA
                 else{
                     DEBUG_LOG_NO_LN("Pas d'acknowledgement adequat reçu à la " + String(receive_retries) + "e écoute parce que : ");
-                    if(!receivePacket(nb_packets_sent_received, requestType, payload)){
+                    if(!packetReceived){
                         DEBUG_LOG("recivePacket est faux");
                     }
                     if(requestType != ACK){
@@ -332,7 +333,8 @@ uint8_t LoraCommunication::sendAllPackets(std::queue<String>& sendQueue){
             sendPacket(nb_packets_sent, DATA, packet_flush);
             int receive_retries = 0;
             while (receive_retries < 6) {
-                if (receivePacket(nb_packets_sent_received, requestType, payload) && requestType == ACK && payload == packet_flush) {
+                bool packetReceived = receivePacket(nb_packets_sent_received, requestType, payload);
+                if (packetReceived && requestType == ACK && payload == packet_flush) {
                     sendQueue.pop();
                     nb_packets_sent++;
                     DEBUG_LOG("one packet successfully sent");
@@ -341,7 +343,7 @@ uint8_t LoraCommunication::sendAllPackets(std::queue<String>& sendQueue){
                 #ifdef DEBUG_LORA
                 else{
                     DEBUG_LOG("pas d'acknowledgement adequat reçu à " + String(receive_retries) + "e écoute parce que : ");
-                    if(!receivePacket(nb_packets_sent_received, requestType, payload)){
+                    if(!packetReceived){
                         DEBUG_LOG("recivePacket est faux");
                     }
                     if(requestType != ACK){
