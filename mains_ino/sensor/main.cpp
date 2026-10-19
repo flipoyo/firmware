@@ -29,6 +29,8 @@ String appEui;
 
 Writer logger(Storage::DATA_FILE_NAME);
 int ncapt = RuntimeDefaults::INITIAL_SENSOR_COUNT;
+long timeUntilNextMeasure;
+long timeUntilNextCommunication;
 
 // LoRa
 LoraCommunication lora(LoRaConfig::FREQUENCY_HZ, devEui, appEui, RoleType::SLAVE);
@@ -169,10 +171,11 @@ void loop() {
         uint8_t id = LoRaConfig::INITIAL_HANDSHAKE_ID;
         if (lora.handshake(id)) {
             Serial.println("HANDSHAKE DONE\n");
-            DEBUG_LOG("CalculateSleepTimeUntilNextMeasurement : " + String(CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes)));
+            timeUntilNextMeasure = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes);
+            DEBUG_LOG("CalculateSleepTimeUntilNextMeasurement : " + String(timeUntilNextMeasure) + "ms");
 
             DEBUG_LOG(String(dataFile.available()));
-            bool time_to_mesure_soon = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes) < Timing::SOON_THRESHOLD_MS;
+            bool time_to_mesure_soon = timeUntilNextMeasure < Timing::SOON_THRESHOLD_MS;
             if(time_to_mesure_soon){
                 DEBUG_LOG("Aborting LoRa send, measurement scheduled soon. Switching to rattrapage mode");
                 lora.closeSession(LoRaConfig::INITIAL_SESSION_PACKET);
@@ -234,13 +237,16 @@ void loop() {
         // --- Sommeil jusqu'à prochaine mesure ---
         Waiter waiter;
         DEBUG_LOG("waiter instancié");
-        if (CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes) <= CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes)){
-            long time_to_sleep = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes);
+        timeUntilNextMeasure = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes);
+        timeUntilNextCommunication = CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes);
+        
+        if (timeUntilNextMeasure <= timeUntilNextCommunication){
+            long time_to_sleep = timeUntilNextMeasure;
             DEBUG_LOG("sleeping until next measure, sleeping for " + String (time_to_sleep)+ "ms");
-            waiter.sleepFor(CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes));
+            waiter.sleepFor(timeUntilNextMeasure);
         } else {
-            DEBUG_LOG("sleeping until next communication " + String (CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes))+"ms");
-            waiter.sleepFor(CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes));
+            DEBUG_LOG("sleeping until next communication " + String (timeUntilNextCommunication)+"ms");
+            waiter.sleepFor(timeUntilNextCommunication);
         }
 
         #ifdef DEBUG_MAIN
