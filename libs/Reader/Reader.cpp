@@ -2,8 +2,6 @@
 // Implementation of the Reader class to read configuration and measurement data from SD card.
 
 #include "Reader.hpp"
-#include <SD.h>
-#include <queue>
 
 // ----- Debug macros -----
 #define DEBUG_READER
