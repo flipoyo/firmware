@@ -50,17 +50,17 @@ jobs:
           # Expects a line like: constexpr const char* VERSION = "1.1.3";
           extract_semver() {          # semver = Semantic Versioning
             local content="$1"        # Saves the first argument in variable `content`
-            # echo loads main.hpp as text => first grep searches for the line containing `VERSION =` => second grep extracts the "X.Y.Z" numbers
-            echo "$content" | grep -E '(VERSION|nVersion)\s*=' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1
+            # echo loads main.hpp as text => first grep searches for the line containing `VERSION =` or `nVersion ` => second grep extracts the "X.Y.Z" numbers
+            echo "$content" | grep -iE '(VERSION|nVersion)\s*=?' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1
           }
 
           # Helper function: checks that target main.hpp has a strictly greater VERSION than on the base branch
           verify_bump() {
             local target_dir="$1"               # The first parameter passed to the function is the folder name that contains the modified files (e.g., mains_ino/relay or libs/Writer)
-            local version_file="${target_dir}/main.hpp"
+            local version_file="$2"             # The second parameter is the exact path to the header file holding the version (e.g., mains_ino/relay/main.hpp or libs/Writer/Writer.hpp)
 
             if ! echo "$CHANGED_FILES" | grep -q "^${version_file}$"; then          # Outputs an error if `main.hpp` is not one of the changed files
-              echo "::error::Code in '${target_dir}' was modified, but '${version_file}' was not updated! Please increment VERSION."
+              echo "::error::Code in '${target_dir}' was modified, but '${version_file}' was not updated! Please increment VERSION/nVersion."
               exit 1
             fi
 
@@ -108,20 +108,25 @@ jobs:
 
           # 1. Direct changes in mains_ino/relay/ (ignoring .md and .csv files)
           if echo "$CHANGED_FILES" | grep -E '^mains_ino/relay/' | grep -qvE '(\.md|\.csv)$'; then
-            verify_bump "mains_ino/relay"
+            verify_bump "mains_ino/relay" "mains_ino/relay/main.hpp"
           fi
 
           # 2. Direct changes in mains_ino/sensor/ (ignoring .md and .csv files)
           if echo "$CHANGED_FILES" | grep -E '^mains_ino/sensor/' | grep -qvE '(\.md|\.csv)$'; then
-            verify_bump "mains_ino/sensor"
+            verify_bump "mains_ino/sensor" "mains_ino/sensor/main.hpp"
           fi
 
           # 3. Direct changes in libs/: each modified library only needs to update its own libs/<lib>/main.hpp (ignoring .md files)
           MODIFIED_LIBS=$(echo "$CHANGED_FILES" | grep -E '^libs/[^/]+/' | grep -vE '\.md$' | cut -d'/' -f2 | sort -u || true)
           for lib in $MODIFIED_LIBS; do
-            [ -d "libs/$lib" ] || { echo "libs/$lib was removed, skipping."; continue; }        # This line skips libraries that a pull request deleted, so the check doesn’t fail on a folder that no longer exists.
             echo "Detected change in library: libs/$lib"
-            verify_bump "libs/$lib"
+            # If libs/<lib>/<lib>.hpp exists, use it; otherwise find the .hpp file inside libs/<lib>/ that contains nVersion
+            if [[ -f "libs/$lib/${lib}.hpp" ]]; then
+              LIB_VERSION_FILE="libs/$lib/${lib}.hpp"
+            else
+              LIB_VERSION_FILE=$(grep -rliE '(VERSION|nVersion)\s*=?' "libs/$lib/" --include="*.hpp" --include="*.h" 2>/dev/null | head -n1 || echo "libs/$lib/${lib}.hpp")
+            fi
+            verify_bump "libs/$lib" "$LIB_VERSION_FILE"
           done
 
           echo "Perfect. Semantic version check passed!"
