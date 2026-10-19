@@ -79,7 +79,7 @@ void setup() {
     lora.LoraUpdateAttributes(LoRaConfig::FREQUENCY_HZ, appEui, devEui, RoleType::SLAVE);
 
     // Compter les capteurs
-    for (auto & _c : liste_capteurs) {
+    for (auto& _c : liste_capteurs) {
         ncapt++;
     }
     // Allocation dynamique
