@@ -78,7 +78,7 @@ void setup() {
 void loop() {
     long currentTime = GetSecondsSinceMidnight();
     
-    if (currentTime - lastAttempt >= res.int_config.lora_intervalle_secondes) {
+    if (CalculateElapsedSeconds(currentTime, lastAttempt) >= res.int_config.lora_intervalle_secondes) {
         DEBUG_LOG("Réveil du relais pour vérification communication LoRa...");
         DEBUG_LOG("Fenêtre de communication LoRa atteinte, tentative de réception des paquets...");
         std::queue<String> receiveQueue;

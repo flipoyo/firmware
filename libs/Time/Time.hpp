@@ -4,7 +4,7 @@
 #include <RTClib.h>
 #include <vector>
 
-#define nVersion 1.0.0
+#define nVersion 1.1.0
 
 // ----- RTC -----
 extern RTC_PCF8523 externalRtc;
@@ -19,6 +19,7 @@ void InitialiseRTC();
 String GetCurrentDate();
 String GetCurrentHour();
 long GetSecondsSinceMidnight();
+long CalculateElapsedSeconds(long currentTime, long previousTime);
 
 long CalculateSleepTimeUntilNextMeasurement(long previousMeasurementTime, int measurementInterval);
 long CalculateSleepTimeUntilNextCommunication(long previousCommunicationTime, int communicationInterval);
