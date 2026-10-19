@@ -53,11 +53,41 @@ void setup() {
 
     // Lecture configuration CSV
     Reader reader;
-    res=reader.lireConfigCSV(Storage::CONFIG_FILE, Pins::SD_CS);
+    GeneralConfig config_from_sd = reader.lireConfigCSV(Storage::CONFIG_FILE, Pins::SD_CS);
+    res.rel_config.CSPin = Pins::SD_CS;
+    res.rel_config.lora_freq = LoRaConfig::FREQUENCY_Hz;
+    res.int_config.lora_intervalle_secondes = LoRaConfig::INITIAL_INTERVAL_SECONDS;
+
+    if (config_from_sd.succes) {
+        if (config_from_sd.rel_config.appEui.length() > 0) {
+            res.rel_config.appEui = config_from_sd.rel_config.appEui;
+        }
+        if (config_from_sd.rel_config.appKey.length() > 0) {
+            res.rel_config.appKey = config_from_sd.rel_config.appKey;
+        }
+        if (config_from_sd.rel_config.devEui.length() > 0) {
+            res.rel_config.devEui = config_from_sd.rel_config.devEui;
+        }
+        if (config_from_sd.rel_config.CSPin > 0) {
+            res.rel_config.CSPin = config_from_sd.rel_config.CSPin;
+        }
+        if (config_from_sd.rel_config.lora_freq > 0) {
+            res.rel_config.lora_freq = config_from_sd.rel_config.lora_freq;
+        }
+        if (config_from_sd.int_config.lora_intervalle_secondes > 0) {
+            res.int_config.lora_intervalle_secondes =
+                config_from_sd.int_config.lora_intervalle_secondes;
+        }
+    }
     DEBUG_LOG("Configuration chargée.");
 
     // Initialisation LoRa communication
-    lora.LoraUpdateAttributes(LoRaConfig::FREQUENCY_Hz, res.rel_config.appEui, res.rel_config.devEui, RoleType::MASTER);
+    lora.LoraUpdateAttributes(
+        static_cast<long>(res.rel_config.lora_freq),
+        res.rel_config.appEui,
+        res.rel_config.devEui,
+        RoleType::MASTER
+    );
 
     // Vérification SD
     if (!SD.begin(res.rel_config.CSPin)) {
@@ -66,7 +96,7 @@ void setup() {
     }
 
     InitialiseRTC();
-    logger.EstablishConnection(Pins::SD_CS);
+    logger.EstablishConnection(res.rel_config.CSPin);
 
     DEBUG_LOG("Initialisation terminée !");
     pinMode(LED_BUILTIN, INPUT_PULLDOWN);
