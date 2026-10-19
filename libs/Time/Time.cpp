@@ -8,6 +8,10 @@
 #include "Time.hpp"
 #include "Reader.hpp"
 
+namespace {
+  const long TIME_SECONDS_PER_DAY = 24L * 60L * 60L;
+}
+
 // ----- RTC -----
 RTC_PCF8523 externalRtc;
 int measurementCount = 0;
@@ -59,10 +63,17 @@ long GetSecondsSinceMidnight() {
   return now.hour() * 3600 + now.minute() * 60 + now.second();
 }
 
+long CalculateElapsedSeconds(long currentTime, long previousTime) {
+  long elapsedTime = currentTime - previousTime;
+  if (elapsedTime < 0) {
+    elapsedTime += TIME_SECONDS_PER_DAY;
+  }
+  return elapsedTime;
+}
+
 long CalculateSleepTimeUntilNextMeasurement(long previousMeasurementTime, int measurementInterval) {
   //retourne en ms
-  long currentTime = GetSecondsSinceMidnight();
-  long time_to_sleep = (measurementInterval - (currentTime - previousMeasurementTime))*1000;
+  long time_to_sleep = (measurementInterval - CalculateElapsedSeconds(GetSecondsSinceMidnight(), previousMeasurementTime))*1000;
   if(time_to_sleep <= 0){
     return time_to_sleep = 0;
   }
@@ -72,8 +83,7 @@ long CalculateSleepTimeUntilNextMeasurement(long previousMeasurementTime, int me
 
 long CalculateSleepTimeUntilNextCommunication(long previousCommunicationTime, int communicationInterval) {
   //retourne en ms
-  long currentTime = GetSecondsSinceMidnight();
-  long time_to_sleep = (communicationInterval - (currentTime - previousCommunicationTime)) * 1000;
+  long time_to_sleep = (communicationInterval - CalculateElapsedSeconds(GetSecondsSinceMidnight(), previousCommunicationTime)) * 1000;
     if(time_to_sleep <= 0){
     return time_to_sleep = 0;
   }
