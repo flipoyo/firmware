@@ -61,6 +61,10 @@ void LoraCommunication::setdesttodefault() {
 
 void LoraCommunication::sendPacket(uint8_t packetNumber, RequestType requestType, const String &payload) {
     if (!active) { DEBUG_LOG("LoRa inactive"); return; }
+    if (Address_sent.length() > 16 || Address_waited.length() > 16) {
+        DEBUG_LOG("LoRa address is too long");
+        return;
+    }
     
     delay(100);
 
@@ -70,11 +74,11 @@ void LoraCommunication::sendPacket(uint8_t packetNumber, RequestType requestType
     }
 
 
-    uint8_t buffer_destination[17];  // 16 caractères + 1 pour '\0'
+    uint8_t buffer_destination[17] = {};  // 16 caractères + 1 pour '\0'
     Address_waited.toCharArray((char*)buffer_destination, sizeof(buffer_destination));
 
 
-    uint8_t buffer_sender[17];  // 16 caractères + 1 pour '\0'
+    uint8_t buffer_sender[17] = {};  // 16 caractères + 1 pour '\0'
     Address_sent.toCharArray((char*)buffer_sender, sizeof(buffer_sender));
 
     DEBUG_LOG("Sending packet to " + Address_waited + " from " + Address_sent + " with :");
@@ -83,9 +87,9 @@ void LoraCommunication::sendPacket(uint8_t packetNumber, RequestType requestType
     //DEBUG_LOG("checksum "+ String(checksum) + "; Packet Number: " + String(packetNumber) + "; Request Type: " + String(static_cast<uint8_t>(requestType)) + "; Payload: " + String(payload));
     LoRa.write(checksum);
     //DEBUG_LOG("written checksum");
-    LoRa.write(buffer_sender, Address_sent.length());
+    LoRa.write(buffer_sender, 16);
     //DEBUG_LOG("written buffer_sender, Adress.length");
-    LoRa.write(buffer_destination, Address_waited.length());
+    LoRa.write(buffer_destination, 16);
     //DEBUG_LOG("written buffer_destination, Adress.length");
     LoRa.write(packetNumber); //envoir d'un seul octet, pas besoin de la taille
     //DEBUG_LOG("written packet number");
@@ -132,7 +136,8 @@ bool LoraCommunication::receivePacket(uint8_t &packetNumber, RequestType &reques
                 sender[i] = (char)LoRa.read();
             }
             sender[addressLength] = '\0'; 
-            //DEBUG_LOG("sender read: " + String(sender));
+            String senderAddress = String(sender);
+            //DEBUG_LOG("sender read: " + senderAddress);
 
 
 
@@ -142,9 +147,10 @@ bool LoraCommunication::receivePacket(uint8_t &packetNumber, RequestType &reques
                 recipient[i] = (char)LoRa.read();
             }
             recipient[addressLength] = '\0';
-            //DEBUG_LOG("Recipient read:"+String(recipient));
+            String recipientAddress = String(recipient);
+            //DEBUG_LOG("Recipient read:"+recipientAddress);
 
-            DEBUG_LOG("Receiving packet to " + String(recipient) + " from " + String(sender));
+            DEBUG_LOG("Receiving packet to " + recipientAddress + " from " + senderAddress);
 
             packetNumber = LoRa.read();
     
@@ -157,12 +163,12 @@ bool LoraCommunication::receivePacket(uint8_t &packetNumber, RequestType &reques
             //DEBUG_LOG("sender :" + String(sender) + "\n");
 
 
-            if (!isValidDestination(String(sender), String(recipient), requestType)) {
+            if (!isValidDestination(senderAddress, recipientAddress, requestType)) {
                 DEBUG_LOG("destination problématique");
                 return false;
             }
 
-            uint8_t calculatedChecksum = calculateChecksum(String(recipient), String(sender), packetNumber, requestType, payload);
+            uint8_t calculatedChecksum = calculateChecksum(recipientAddress, senderAddress, packetNumber, requestType, payload);
             if (calculatedChecksum != receivedChecksum) {
                 DEBUG_LOG("checksum problématique");
                 return false;
