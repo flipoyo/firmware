@@ -50,7 +50,7 @@ void setup() {
     digitalWrite(LED_BUILTIN, HIGH);
     
     Serial.begin(SerialConfig::BAUD_RATE);
-    long end_date = millis() + Timing::SERIAL_STARTUP_TIMEOUT_MS;
+    unsigned long end_date = millis() + Timing::SERIAL_STARTUP_TIMEOUT_MS;
     while (!Serial && millis() < end_date) {}
     
     Serial.print("Sensor Firmware Version: ");
@@ -250,6 +250,7 @@ void loop() {
         }
 
         #ifdef DEBUG_MAIN
+        // Blink for when it wakes up from sleep, to indicate that it is awake and running the loop again
         for (int blink = 0; blink < 5; blink++) {
             digitalWrite(LED_BUILTIN, HIGH);
             delay(100);
