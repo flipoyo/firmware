@@ -6,7 +6,7 @@
 #include <vector>
 #include <queue>
 
-#define nVersion 1.0.0
+#define nVersion 1.0.1
 
 // ---- Structures globales ----
 struct SensorConfig {
