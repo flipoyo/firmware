@@ -476,7 +476,7 @@ bool LoraCommunication::receiveConfigUpdate(const char* filepath, uint16_t* outM
                         long vv = val.toInt();
                         if (vv > 0 && outMeasureInterval) *outMeasureInterval = (uint16_t)vv;
                     }
-                } else if (copy.startsWith("intervalle_lora_secondes")) {
+                } else if (copy.startsWith("lora_intervalle_secondes")) {
                     int idx = copy.indexOf(',');
                     if (idx >= 0) {
                         String val = copy.substring(idx + 1);
@@ -513,8 +513,8 @@ bool LoraCommunication::receiveConfigUpdate(const char* filepath, uint16_t* outM
         if (ligne.startsWith("intervalle_de_mesure_secondes")) {
             ligne = "intervalle_de_mesure_secondes," + String(measureInterval);
         }
-        else if (ligne.startsWith("intervalle_lora_secondes")) {
-            ligne = "intervalle_lora_secondes," + String(loraInterval);
+        else if (ligne.startsWith("lora_intervalle_secondes")) {
+            ligne = "lora_intervalle_secondes," + String(loraInterval);
         }
     }
     
