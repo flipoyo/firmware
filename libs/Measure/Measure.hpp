@@ -5,7 +5,7 @@
 #include <string>
 #include <Arduino.h>
 
-#define nVersion 1.0.0
+#define nVersion 1.0.1
 
 class Sensor {
     public :

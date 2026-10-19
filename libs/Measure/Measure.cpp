@@ -35,39 +35,45 @@ double Sensor::get_voltage() {
 }
 
 Measure::Measure(int ncapt_arg, const std::vector<double>& toute_mesure, String uidString_arg):
+  id(0),
+  date(GetCurrentDate()),
+  time(GetCurrentHour()),
+  time_in_second(0),
   ncapt(ncapt_arg),
   channel(),
-  uidString(uidString_arg),
-  time(GetCurrentHour()),
-  date(GetCurrentDate())
+  uidString(uidString_arg)
   {
     DEBUG_LOG("Taking measure at time : " + String(time) + "; and date : " + String(date) + ";");
+
+  if (ncapt < 0) {
+    DEBUG_LOG("Invalid negative sensor count; recording no channels");
+    ncapt = 0;
+  } else if (static_cast<size_t>(ncapt) > toute_mesure.size()) {
+    DEBUG_LOG("Sensor count exceeds available measurements; recording available channels only");
+    ncapt = static_cast<int>(toute_mesure.size());
+  }
   
   for (int iterator = 0; iterator < ncapt; iterator ++){
-    //DEBUG_LOG("set channel element number " + String(iterator) + " to " + String(toute_mesure[iterator]));
     channel.push_back(toute_mesure[iterator]);
   }
-  //DEBUG_LOG("Measure object well initialised");
 }
 
 // Retourne une ligne formatée pour une mesure
 String Measure::oneLine() {
   DEBUG_LOG("starting oneLine");
-  String date = GetCurrentDate();
-  DEBUG_LOG("GetCurrentDate finished in oneLine");
-  String hour = GetCurrentHour();
-  DEBUG_LOG("GetCurrentHour finished in oneLine");
   DEBUG_LOG(String(ncapt) + " capteurs détectés");
   DEBUG_LOG("Heure actuelle : " + time);
   // Construction de la ligne
   String str = this->uidString;
-  str += " ; " + String(id) + " ; " + date + " ; " + hour + "  ; ";
+  str += " ; " + String(id) + " ; " + this->date + " ; " + this->time + "  ; ";
 
   // Ajouter les valeurs des capteurs
-  for (int i = 0; i < ncapt; i++) {
+  const size_t valueCount = channel.size() < static_cast<size_t>(ncapt)
+    ? channel.size()
+    : static_cast<size_t>(ncapt);
+  for (size_t i = 0; i < valueCount; i++) {
     str += " " + String(channel[i]);
-    if (i < ncapt) str += "; ";
-
+    if (i + 1 < valueCount) str += "; ";
   }
   DEBUG_LOG("end of initialization of one LineMeasure" + str);
   return str;
