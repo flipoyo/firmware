@@ -22,18 +22,18 @@ Writer logger(Storage::RECORDS_FILE);
 
 GeneralConfig res;
 
-long lastLoraSend = 0;
-long lastAttempt = 0;// mémorise la dernière tentative de réception (en millisecondes)
+long lastLoraSend = RuntimeDefaults::INITIAL_LAST_LORA_SEND;
+long lastAttempt = RuntimeDefaults::INITIAL_LAST_ATTEMPT;// mémorise la dernière tentative de réception (en millisecondes)
 
 String appEui;
 String devEui;
 String appKey;
 LoraCommunication lora(LoRaConfig::FREQUENCY_Hz, devEui, appEui, RoleType::MASTER);
-bool modif = false;
+bool modif = RuntimeDefaults::INITIAL_MODIFICATION_STATE;
 
 Waiter waiter; //pour ne pas l'indenter dans le loop
-unsigned long lastSDOffsetConfig = 0;
-unsigned long lastSDOffset = 0;
+unsigned long lastSDOffsetConfig = RuntimeDefaults::INITIAL_SD_OFFSET_CONFIG;
+unsigned long lastSDOffset = RuntimeDefaults::INITIAL_SD_OFFSET;
 
 
 // ----- Setup -----
@@ -85,7 +85,7 @@ void loop() {
         lora.startLoRa();
 
         // Réception des paquets via LoRa
-        uint8_t deviceId = 0; // initialise avec packetNumber = 0 
+        uint8_t deviceId = RuntimeDefaults::INITIAL_DEVICE_ID; // initialise avec packetNumber = 0
         if (lora.handshake(deviceId)) {
 
             DEBUG_LOG("Handshake réussi. Réception des paquets...");

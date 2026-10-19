@@ -17,7 +17,7 @@
 #endif
 
 namespace Version {
-    constexpr const char* VERSION = "1.1.6";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
+    constexpr const char* VERSION = "1.2.6";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
 }
 
 // Serial Configuration
@@ -41,4 +41,14 @@ namespace LoRaConfig {
 namespace Storage {
     constexpr const char* CONFIG_FILE = "conf.csv";             // File used to load the configuration into the relay
     constexpr const char RECORDS_FILE[] = "RECORDS.CSV";        // File used to save the received data from the sensor (or sensors after upscaling to include more than one sensor)
+}
+
+// Initial runtime state
+namespace RuntimeDefaults {
+    constexpr long INITIAL_LAST_LORA_SEND = 0;
+    constexpr long INITIAL_LAST_ATTEMPT = 0;
+    constexpr unsigned long INITIAL_SD_OFFSET_CONFIG = 0;
+    constexpr unsigned long INITIAL_SD_OFFSET = 0;
+    constexpr bool INITIAL_MODIFICATION_STATE = false;
+    constexpr uint8_t INITIAL_DEVICE_ID = 0;
 }
