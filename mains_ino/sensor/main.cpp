@@ -21,8 +21,8 @@ std::vector<double> toute_mesure;
 
 GeneralConfig config;
 std::vector<SensorConfig> liste_capteurs;
-int lora_intervalle_secondes;
-int intervalle_de_mesure_secondes;
+int lora_intervalle_secondes = LoRaConfig::INITIAL_INTERVAL;
+int intervalle_de_mesure_secondes = MeasurementConfig::INITIAL_INTERVAL;
 String devEui;
 String appEui;
 
@@ -61,13 +61,28 @@ void setup() {
     Reader reader;
 
     GeneralConfig temp_config_container = reader.lireConfigCSV(Storage::CONFIG_FILE_PATH, Pins::SD_CHIP_SELECT_PIN);
-    IntervallConfig int_conf = temp_config_container.int_config;
-    
-    liste_capteurs = temp_config_container.liste_capteurs;
-    lora_intervalle_secondes = int_conf.lora_intervalle_secondes;
-    intervalle_de_mesure_secondes = int_conf.intervalle_de_mesure_secondes;
-    devEui = temp_config_container.rel_config.devEui;
-    appEui = temp_config_container.rel_config.appEui;
+    long lora_frequency = LoRaConfig::FREQUENCY_HZ;
+
+    if (temp_config_container.succes) {
+        if (!temp_config_container.liste_capteurs.empty()) {
+            liste_capteurs = temp_config_container.liste_capteurs;
+        }
+        if (temp_config_container.int_config.lora_intervalle_secondes > 0) {
+            lora_intervalle_secondes = temp_config_container.int_config.lora_intervalle_secondes;
+        }
+        if (temp_config_container.int_config.intervalle_de_mesure_secondes > 0) {
+            intervalle_de_mesure_secondes = temp_config_container.int_config.intervalle_de_mesure_secondes;
+        }
+        if (temp_config_container.rel_config.devEui.length() > 0) {
+            devEui = temp_config_container.rel_config.devEui;
+        }
+        if (temp_config_container.rel_config.appEui.length() > 0) {
+            appEui = temp_config_container.rel_config.appEui;
+        }
+        if (temp_config_container.rel_config.lora_freq > 0) {
+            lora_frequency = static_cast<long>(temp_config_container.rel_config.lora_freq);
+        }
+    }
 
     if (temp_config_container.succes){
         DEBUG_LOG("lecture config terminée avec succès");
@@ -76,10 +91,10 @@ void setup() {
         DEBUG_LOG("échec de la lecture du fichier config");
     }
 
-    lora.LoraUpdateAttributes(LoRaConfig::FREQUENCY_HZ, appEui, devEui, RoleType::SLAVE);
+    lora.LoraUpdateAttributes(lora_frequency, appEui, devEui, RoleType::SLAVE);
 
     // Compter les capteurs
-    for (auto & _c : liste_capteurs) {
+    for (auto& _c : liste_capteurs) {
         ncapt++;
     }
     // Allocation dynamique

@@ -51,6 +51,10 @@ GeneralConfig Reader::lireConfigCSV(const char* NomFichier, int CSPin) {
         }
         tokens.push_back(line.substring(last)); // dernier token
 
+        for (String& token : tokens) {
+            token.trim();
+        }
+
         // ---------- PARAMÈTRES GLOBAUX ----------
         if (tokens.size() == 2) {
             String key = tokens[0];
