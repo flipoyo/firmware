@@ -16,7 +16,7 @@
 
 
 namespace Version {
-    constexpr const char* VERSION = "1.1.7";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
+    constexpr const char* VERSION = "1.1.9";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
 
 }
 
