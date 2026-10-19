@@ -116,6 +116,11 @@ bool LoraCommunication::receivePacket(uint8_t &packetNumber, RequestType &reques
         delay(10);//VERY TEMPORARY
         int packetSize = LoRa.parsePacket();
         if (packetSize) {
+            if (packetSize < 16) {
+                DEBUG_LOG("Packet too short");
+                return false;
+            }
+
             DEBUG_LOG_NO_LN("RECEIVING A PACKET. packet size :" + String(packetSize));
 
             uint8_t receivedChecksum = LoRa.read();
