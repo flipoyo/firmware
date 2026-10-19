@@ -236,7 +236,11 @@ Reader is a library that allows you to retrieve data stored on the SD card after
                        └─────────────────────────────┘
 
 ## *Time*
-This file manages the time and measurement schedules for the MKR board-based system. It uses both the board's internal clock (RTCZero) and an external clock (RTC_PCF8523) to ensure accuracy and persistence after power loss.
+This library manages the time and interval-based measurement and communication schedules for the MKR board-based system. The active firmware uses the external `RTC_PCF8523` as its time source. If the RTC reports that it has lost power, it is initialized from the firmware compilation date and time.
+
+`GetCurrentDate()`, `GetCurrentHour()`, and `GetSecondsSinceMidnight()` read the current value from the external RTC. The relay and sensor store event timestamps as seconds since midnight. `CalculateElapsedSeconds()` compares those timestamps and adds one day when the current seconds value is lower than the previous value, so intervals that cross midnight continue to work correctly.
+
+`CalculateSleepTimeUntilNextMeasurement()` and `CalculateSleepTimeUntilNextCommunication()` return the remaining interval in milliseconds. They return zero when the requested interval has already elapsed; the caller passes the resulting duration to the appropriate low-power wait function.
                  ┌──────────────────────────┐
                  │  Read config CSV         │
                  │  (freq_mesure&freq_LoRa) │
@@ -244,22 +248,21 @@ This file manages the time and measurement schedules for the MKR board-based sys
                                │
                                ▼
                   ┌─────────────────────────┐
-                  │ Initialisation RTC      │
-                  │ internalRtc&externalRtc │
+                  │ Initialize external RTC │
                   └─────────────┬───────────┘
                                 │
           ┌─────────────────────┴─────────────────────┐
           │                                           │
           ▼                                           ▼
  ┌─────────────────────┐                     ┌───────────────────────┐
- │ RTC synchro         │                     │ Initialisation vecteur│
- │ intern ↔ extern.    │                     │ measurementTimesVec   │
+ │ Read current date   │                     │ Read seconds since    │
+ │ and time            │                     │ midnight              │
  └─────────┬───────────┘                     └─────────┬─────────────┘
            │                                           │
            ▼                                           ▼
   ┌─────────────────────┐                   ┌────────────────────────┐
-  │ Get date/hour.      │                   │ Calculates time        │
-  │ GetCurrentDate/Hour │                   │ since midnight         │
+  │ GetCurrentDate/Hour│                    │ CalculateElapsedSeconds│
+  │                    │                   │ handles midnight       │
   └─────────┬───────────┘                   └─────────┬──────────────┘
             │                                            │
             ▼                                            ▼
