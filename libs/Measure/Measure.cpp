@@ -72,8 +72,7 @@ String Measure::oneLine() {
     ? channel.size()
     : static_cast<size_t>(ncapt);
   for (size_t i = 0; i < valueCount; i++) {
-    str += " " + String(channel[i]);
-    if (i + 1 < valueCount) str += "; ";
+    str += " " + String(channel[i]) + "; ";
   }
   DEBUG_LOG("end of initialization of one LineMeasure" + str);
   return str;
