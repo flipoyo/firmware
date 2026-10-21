@@ -194,7 +194,9 @@ bool LoraCommunication::isValidDestination(const String &recipient, const String
 }
 
 uint8_t LoraCommunication::calculateChecksum(const String &recipient, const String &dest, uint8_t packetNumber, RequestType requestType, const String &payload) {
-    uint8_t checksum = recipient.toInt() ^ dest.toInt() ^ packetNumber ^ static_cast<uint8_t>(requestType);
+    uint8_t checksum = packetNumber ^ static_cast<uint8_t>(requestType);
+    for (char c : recipient) checksum ^= static_cast<uint8_t>(c);
+    for (char c : dest) checksum ^= static_cast<uint8_t>(c);
     for (char c : payload) checksum ^= c;
     return checksum;
 }
