@@ -136,7 +136,7 @@ void loop() {
                     memory_line new_line = memory_line(config.readStringUntil('\n'), config.position());
                     lines_config.push(new_line);
                     
-                        uint8_t lastPacket = lora.sendAllPacketsAndManageMemory(lines_config, lastSDOffsetConfig, config);
+                        uint8_t lastPacket = lora.sendAllPacketsAndManageMemory(lines_config, lastSDOffsetConfig);
                         lora.closeSession(lastPacket);
 
                         modif = !(lastSDOffsetConfig == config.position());
@@ -210,6 +210,22 @@ void loop() {
     DEBUG_LOG("Relais en veille jusqu’à la prochaine fenêtre de communication...");
     long time_to_sleep = CalculateSleepTimeUntilNextCommunication(lastAttempt, res.int_config.lora_intervalle_secondes); 
     DEBUG_LOG("sleeping until next communication " + String (time_to_sleep) + "ms");
+    #ifdef DEBUG_MAIN
+        for(int i = 0; i < 5; i++) {
+            digitalWrite(LED_BUILTIN, HIGH);
+            delay(100);
+            digitalWrite(LED_BUILTIN, LOW);
+            delay(100);
+        }
+    #endif
     LowPower.idle(uint32_t(time_to_sleep));
+    #ifdef DEBUG_MAIN
+        for(int i = 0; i < 5; i++) {
+            digitalWrite(LED_BUILTIN, HIGH);
+            delay(300);
+            digitalWrite(LED_BUILTIN, LOW);
+            delay(100);
+        }
+    #endif
     }
 }

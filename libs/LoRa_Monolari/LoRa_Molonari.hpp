@@ -8,7 +8,7 @@
 
 #include <Reader.hpp>
 
-#define nVersion 2.0.0
+#define nVersion 2.0.1
 
 enum RequestType : uint8_t {
     SYN  = 0xcc,
@@ -41,7 +41,7 @@ public:
 
     // Sessions
     bool handshake(uint8_t &shift);
-    uint8_t sendAllPacketsAndManageMemory(std::queue<memory_line>& sendQueue, unsigned long& initial_adress, File& dataFile);
+    uint8_t sendAllPacketsAndManageMemory(std::queue<memory_line>& sendQueue, unsigned long& initial_adress);
     uint8_t sendAllPackets(std::queue<String> &sendQueue);
     int receiveAllPackets(std::queue<String> &receiveQueue);
     bool closeSession(int lastPacket);
@@ -57,5 +57,3 @@ private:
 };
 
 #endif
-
-
