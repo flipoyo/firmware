@@ -65,14 +65,14 @@ String Measure::oneLine() {
   DEBUG_LOG("Heure actuelle : " + time);
   // Construction de la ligne
   String str = this->uidString;
-  str += " ; " + String(id) + " ; " + this->date + " ; " + this->time + "  ; ";
+  str += " ; " + String(id) + " ; " + this->date + " ; " + this->time + " ;";
 
   // Ajouter les valeurs des capteurs
   const size_t valueCount = channel.size() < static_cast<size_t>(ncapt)
     ? channel.size()
     : static_cast<size_t>(ncapt);
-  for (size_t i = 0; i < valueCount; i++) {
-    str += " " + String(channel[i]) + "; ";
+  for (size_t i = 0; i < valueCount; i++) { 
+    str += " " + String(channel[i]) + " ;";
   }
   DEBUG_LOG("end of initialization of one LineMeasure" + str);
   return str;

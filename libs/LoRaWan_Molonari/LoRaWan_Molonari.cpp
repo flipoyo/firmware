@@ -5,6 +5,7 @@
 #include <pb_decode.h>
 #include <pb_encode.h>
 #include <MKRWAN.h>
+#include <RTClib.h>
 #include "encode.h"
 
 #include "LoRaWan_Molonari.hpp"
@@ -82,7 +83,7 @@ bool encode(uint8_t *outBuffer, size_t outSize, size_t &messageLength, String in
 
             default: // Les mesures
                 msg.measurements[msg.measurements_count] = token.toFloat();
-                msg.measurements_count++;
+                msg.measurements_count = (msg.measurements_count < 9) ? msg.measurements_count + 1 : msg.measurements_count;
                 break;
         }
 
@@ -90,23 +91,15 @@ bool encode(uint8_t *outBuffer, size_t outSize, size_t &messageLength, String in
         startIndex = sepIndex + 1;
     }
 
-    // --- Conversion date+heure vers format compact ---
-    // Exemple : "10/11/2025" + "16:01:25" → "1110251601"
+    // --- Conversion date+heure vers Unix seconds ---
     int jour = 0, mois = 0, annee = 0;
     int heure = 0, minute = 0, seconde = 0;
 
     sscanf(dateStr.c_str(), "%d/%d/%d", &jour, &mois, &annee);
     sscanf(timeStr.c_str(), "%d:%d:%d", &heure, &minute, &seconde);
 
-    // On prend seulement les deux derniers chiffres de l’année
-    int annee2 = annee % 100;
-
-    // On concatène dans l’ordre : MM JJ AA HH MM → "1110251601"
-    char dateTimeStr[11];
-    snprintf(dateTimeStr, sizeof(dateTimeStr), "%02d%02d%02d%02d%02d",
-             mois, jour, annee2, heure, minute);
-
-    msg.time = strtoul(dateTimeStr, nullptr, 10);
+    DateTime dateTime(annee, mois, jour, heure, minute, seconde);
+    msg.time = static_cast<int32_t>(dateTime.unixtime());
 
 
     // --- Encodage Protobuf ---
@@ -159,7 +152,7 @@ bool LoraWANCommunication::sendAllPacketsAndManageMemoryWAN(std::queue<memory_li
     // handles packet sending and acknowledgement verificaiton, SDOffset updating, and ensures dataFile.position() is at the right place (terminal SDOffset).
 
     while (!sendQueue.empty()) {
-        uint8_t buffer[64];
+        uint8_t buffer[78];
         size_t messageLength = 0;
         
         memory_line packet = sendQueue.front();

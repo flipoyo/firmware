@@ -16,7 +16,7 @@
 
 
 namespace Version {
-    constexpr const char* VERSION = "1.2.17";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
+    constexpr const char* VERSION = "1.2.18";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
 }
 
 namespace SerialConfig {
@@ -66,6 +66,6 @@ namespace RuntimeDefaults {
 namespace Timing {
     constexpr unsigned long SERIAL_STARTUP_TIMEOUT_MS = 5000; // Maximum wait for the serial port.
     constexpr unsigned long SETUP_DELAY_MS = 1000;  // Delay after setup completes.
-    constexpr unsigned long CONFIG_UPDATE_TIMEOUT_MS = 15000; // Wait time for a configuration update.
+    constexpr unsigned long CONFIG_UPDATE_TIMEOUT_MS = 1000; // Wait time for a configuration update.
     constexpr unsigned long SOON_THRESHOLD_MS = 1000; // Threshold for determining if a measurement is imminent.
 }
