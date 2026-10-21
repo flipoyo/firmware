@@ -213,7 +213,7 @@ void loop() {
                 uint32_t end_document_address = dataFile.position();
                 DEBUG_LOG("end_document_address : " + String(end_document_address) + "; memory_successor of the last element of sendqueue : " + String(linesToSend.back().memory_successor));
                 DEBUG_LOG("SDOffset before sending: " + String(lastSDOffset) + "\n                     SEND ALL PACKETS AND MANAGE MEMORY");
-                uint8_t lastPacket = lora.sendAllPacketsAndManageMemory(linesToSend, lastSDOffset, dataFile);
+                uint8_t lastPacket = lora.sendAllPacketsAndManageMemory(linesToSend, lastSDOffset);
                 DEBUG_LOG("SDOffset after sending: " + String(lastSDOffset) + "; end document address : " + String(end_document_address));
                 rattrapage = !(lastSDOffset == end_document_address);
                 DEBUG_LOG("rattrappage status : " + String(rattrapage) + "\n\n");
