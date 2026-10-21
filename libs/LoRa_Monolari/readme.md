@@ -1,304 +1,197 @@
-# LoRa Communication Library
+# LoRa_Molonari
 
-Une bibliothèque Arduino pour gérer la communication LoRa entre un MASTER et un SLAVE, avec gestion des paquets, contrôle d’intégrité, et sessions fiables.
+Arduino LoRa communication library for the Molonari sensor and relay firmware.
+The library provides point-to-point packet transmission, a master/slave
+handshake, acknowledgements, duplicate detection, and session termination.
 
----
+## Requirements
 
-## Table des matières
-- [Description](#description)  
-- [Fonctionnalités](#fonctionnalités)  
-- [Installation](#installation)  
-- [Utilisation](#utilisation)  
-- [Licence](#licence)  
----
+- Arduino framework
+- [LoRa](https://github.com/sandeepmistry/arduino-LoRa) library
+- `Reader.hpp`, which provides the `memory_line` type used by the
+  SD-offset-aware send method
 
-## Description
+## Packet format
 
-Cette bibliothèque permet de créer une communication LoRa robuste entre deux dispositifs Arduino (ou compatibles).
+Each packet uses the following layout:
 
-Elle inclut :
-- Envoi et réception de paquets avec ACK et checksum.
-- Gestion des sessions avec SYN, SYN-ACK, ACK, et FIN.
-- Contrôle de destination pour éviter les paquets indésirables.
-- Retransmission automatique en cas d’échec.
+```text
+checksum (1 byte)
+sender address (16 bytes)
+destination address (16 bytes)
+packet number (1 byte)
+request type (1 byte)
+payload (variable length)
+```
 
----
+Addresses are logical `String` values and are encoded in fixed-width 16-byte
+fields. Shorter addresses are padded with zero bytes. Received addresses are
+converted back to logical strings before destination validation and checksum
+calculation. Addresses longer than 16 characters are rejected by
+`sendPacket()`.
 
-## Fonctionnalité
+The checksum is a one-byte XOR of:
 
-- Communication point-à-point ou multi-destinations.
-- Support des rôles MASTER et SLAVE.
-- Gestion automatique de la file d’attente (std::queue) pour les messages à envoyer et à recevoir.
-- Vérification d’intégrité avec checksum simple XOR.
-- Limite de taille de file d’attente configurable (MAX_QUEUE_SIZE).
+- Every character in the destination address.
+- Every character in the sender address.
+- The packet number.
+- The request type.
+- Every character in the payload.
 
----
-MASTER                           SLAVE
-  |                                |
-  |---- SYN (packet 0) ------------>|  // Master initie le handshake
-  |                                |
-  |<--- SYN-ACK (packet 0) --------|  // Slave répond avec SYN-ACK
-  |                                |
-  |---- ACK (packet 0) ------------>|  // Master confirme la synchro
-  |                                |
-  |        HANDSHAKE TERMINÉ        |
+The checksum is an integrity check, not authentication.
 
-  // --- Transmission de données ---
-  |---- DATA (packet 1) ----------->|
-  |                                |
-  |<--- ACK (packet 1) ------------|  // Slave confirme la réception
-  |---- DATA (packet 2) ----------->|
-  |                                |
-  |<--- ACK (packet 2) ------------|
-  |              ...               |
+## Public API
 
-  // --- Fin de session ---
-  |---- FIN (lastPacket) ---------->|
-  |                                |
-  |<--- FIN (lastPacket) ----------|  // Slave confirme la fin
-  |                                |
-  |         SESSION TERMINÉE       |
- 
----
+### Construction and radio state
 
-1. **LoraCommunication::LoraCommunication(long frequency, uint8_t localAdd, uint8_t desti, RoleType role)**
-Initialise un objet LoRa avec :
-- freq : fréquence LoRa (ex: 915 MHz)
-- localAddress : adresse locale du device
-- destination : adresse du destinataire
-- deviceRole : MASTER ou SLAVE
-- active : booléen indiquant si LoRa est actif (initialement false)
+```cpp
+LoraCommunication(
+    long frequency,
+    String Address_sent,
+    String Address_waited,
+    RoleType role
+);
 
-2. **void LoraCommunication::startLoRa()**
-Active le module LoRa avec LoRa.begin(freq).
-- Essaie jusqu’à 3 fois en cas d’échec.
-- Active active = true si réussite.
-- Affiche les logs si debug activé.
+void LoraUpdateAttributes(
+    long frequency,
+    String Address_sent,
+    String Address_waited,
+    RoleType role
+);
 
-3. **void LoraCommunication::stopLoRa()**
-- Désactive le module LoRa (LoRa.end()) et met active = false.
-- Log de confirmation si debug.
+void startLoRa();
+void stopLoRa();
+bool isLoRaActive();
+void setdesttodefault();
+```
 
-4. **setdesttodefault()**
-- Remet la destination à 0xff (broadcast).
+- `Address_sent` is this device's logical address.
+- `Address_waited` is the expected peer address.
+- `role` is `MASTER` or `SLAVE`.
+- `startLoRa()` attempts to initialize the radio up to three times.
+- `setdesttodefault()` changes the expected destination to the default
+  broadcast value used by the existing protocol.
 
-5. **void LoraCommunication::sendPacket(uint8_t packetNumber, RequestType requestType, const String &payload)**
-Envoie un paquet LoRa structuré :
-- checksum → pour vérifier l’intégrité
-- destination → destinataire
-- localAddress → émetteur
-- packetNumber → numéro du paquet
-- requestType → SYN, ACK, DATA, FIN
-- payload → contenu du message
+### Individual packets
 
-Attends un petit délai aléatoire avant d’envoyer pour éviter les collisions.
-Utilise LoRa.beginPacket() et LoRa.endPacket().
+```cpp
+void sendPacket(
+    uint8_t packetNumber,
+    RequestType requestType,
+    const String& payload
+);
 
-6. **bool LoraCommunication::receivePacket(uint8_t &packetNumber, RequestType &requestType, String &payload)**
-- Vérifie s’il y a un paquet disponible (LoRa.parsePacket()).
-- Lit les champs : checksum, destinataire, émetteur, numéro de paquet, type de requête, payload.
-- Vérifie la destination avec isValidDestination.
-- Vérifie la checksum pour l’intégrité.
-- Retourne true si paquet valide reçu.
+bool receivePacket(
+    uint8_t& packetNumber,
+    RequestType& requestType,
+    String& payload
+);
 
-7. **bool LoraCommunication::isValidDestination(int recipient, int dest, RequestType requestType)**
-- Vérifie si le paquet reçu est destiné à ce device.
-- Si SYN et destination par défaut (0xff) et destinataire connu (myNet), accepte le paquet et définit destination.
+bool isValidDestination(
+    const String& recipient,
+    const String& dest,
+    RequestType requestType
+);
 
-8. **bool LoraCommunication::isValidDestination(int recipient, int dest, RequestType requestType)**
-- Vérifie si le paquet reçu est destiné à ce device.
-- Si SYN et destination par défaut (0xff) et destinataire connu (myNet), accepte le paquet et définit destination
+uint8_t calculateChecksum(
+    const String& recipient,
+    const String& dest,
+    uint8_t packetNumber,
+    RequestType requestType,
+    const String& payload
+);
+```
 
-9. **uint8_t LoraCommunication::calculateChecksum(...)**
-- Calcul simple XOR entre tous les octets du paquet : recipient, dest, packetNumber, requestType et payload.
-- Permet de détecter les erreurs de transmission.
+`sendPacket()` requires the radio to be active. `receivePacket()` waits for a
+packet for up to approximately one second. It rejects packets shorter than
+16 bytes, validates the destination, and then validates the checksum.
 
-10. **bool LoraCommunication::isLoRaActive()**
-- Retourne l’état actuel du module (true si LoRa est actif).
+The request types are:
 
-11. **bool LoraCommunication::handshake(uint8_t &shift)**
-Gère la synchronisation MASTER/SLAVE :
-- MASTER : envoie SYN → attend SYN-ACK → renvoie ACK
-- SLAVE : attend SYN → renvoie SYN-ACK → attend ACK
-- shift reçoit le numéro du paquet initial pour synchronisation.
-Retry automatique en cas d’échec (max 6 fois).
+```cpp
+SYN  = 0xcc
+ACK  = 0x33
+DATA = 0xc3
+FIN  = 0x3c
+```
 
-12. **uint8_t LoraCommunication::sendPackets(std::queue<String> &sendQueue)**
-Envoie tous les messages dans la queue.
+### Sessions
 
-Pour chaque message :
-- Envoie DATA
-- Attend ACK
-- Retry jusqu’à 6 fois
-Retourne le nombre de paquets envoyés.
+```cpp
+bool handshake(uint8_t& shift);
 
-13. **int LoraCommunication::receivePackets(std::queue<String> &receiveQueue)**
-- Attend les paquets entrants pendant 60 secondes ou jusqu’à FIN.
-- Vérifie le numéro du paquet pour éviter les doublons.
-- Push le payload dans la queue receiveQueue.
-- Envoie ACK pour chaque paquet reçu.
-- Retourne le dernier numéro de paquet reçu.
+uint8_t sendAllPacketsAndManageMemory(
+    std::queue<memory_line>& sendQueue,
+    unsigned long& initial_adress
+);
 
-14. **void LoraCommunication::closeSession(int lastPacket)**
-- Envoie FIN pour terminer la session.
-- Attends confirmation FIN de l’autre côté.
-- Retry jusqu’à 3 fois.
+uint8_t sendAllPackets(std::queue<String>& sendQueue);
 
-## Installation
+int receiveAllPackets(std::queue<String>& receiveQueue);
 
-1. Installer la bibliothèque [LoRa](https://github.com/sandeepmistry/arduino-LoRa) pour Arduino via le Library Manager.
-2. Copier les fichiers LoRa_Molonari.hpp et LoRa_Molonari.cpp dans votre projet Arduino.
-3. Inclure la bibliothèque dans votre sketch 
+bool closeSession(int lastPacket);
+```
 
-# LoRa Communication Library
+#### `handshake()`
 
-Une bibliothèque Arduino pour gérer la communication LoRa entre un MASTER et un SLAVE, avec gestion des paquets, contrôle d’intégrité, et sessions fiables.
+- A `MASTER` sends `SYN`, waits for `SYN-ACK`, and sends repeated final
+  acknowledgements.
+- A `SLAVE` waits for `SYN`, sends `SYN-ACK`, and waits for the final
+  acknowledgement.
+- `shift` receives the packet number supplied by the peer during the
+  handshake.
 
----
+#### `sendAllPacketsAndManageMemory()`
 
-## Table des matières
-- [Description](#description)  
-- [Fonctionnalités](#fonctionnalités)  
-- [Installation](#installation)  
-- [Utilisation](#utilisation)  
-- [Licence](#licence)  
----
+This is the method used by the current sensor and relay firmware.
 
-## Description
+For each `memory_line`, it:
 
-Cette bibliothèque permet de créer une communication LoRa robuste entre deux dispositifs Arduino (ou compatibles).
+1. Sends a `DATA` packet.
+2. Waits for an `ACK` containing the exact payload.
+3. Removes the line from the queue only after that acknowledgement.
+4. Advances `initial_adress` to the acknowledged line's successor address.
 
-Elle inclut :
-- Envoi et réception de paquets avec ACK et checksum.
-- Gestion des sessions avec SYN, SYN-ACK, ACK, et FIN.
-- Contrôle de destination pour éviter les paquets indésirables.
-- Retransmission automatique en cas d’échec.
+Each packet can be attempted up to ten times, with up to six acknowledgement
+receives per attempt. The method returns the number of acknowledged packets.
+If transmission ultimately fails, unacknowledged lines are not reflected by an
+advance of `initial_adress`; the caller should use that offset to retry the
+remaining SD data later.
 
----
+#### `sendAllPackets()`
 
-## Fonctionnalité
+This queue-only method uses the same `DATA`/`ACK` exchange without SD offset
+management. It is retained for compatibility but is not used by the current
+sensor or relay application paths.
 
-- Communication point-à-point ou multi-destinations.
-- Support des rôles MASTER et SLAVE.
-- Gestion automatique de la file d’attente (std::queue) pour les messages à envoyer et à recevoir.
-- Vérification d’intégrité avec checksum simple XOR.
-- Limite de taille de file d’attente configurable (MAX_QUEUE_SIZE).
+#### `receiveAllPackets()`
 
----
-MASTER                           SLAVE
-  |                                |
-  |---- SYN (packet 0) ------------>|  // Master initie le handshake
-  |                                |
-  |<--- SYN-ACK (packet 0) --------|  // Slave répond avec SYN-ACK
-  |                                |
-  |---- ACK (packet 0) ------------>|  // Master confirme la synchro
-  |                                |
-  |        HANDSHAKE TERMINÉ        |
+Waits for incoming packets for up to 60 seconds or until a `FIN` packet is
+received. Data payloads are added to `receiveQueue`, and each accepted packet
+is acknowledged. Duplicate packet numbers are acknowledged again without
+adding a second payload. The queue is limited to `MAX_QUEUE_SIZE` (255
+entries).
 
-  // --- Transmission de données ---
-  |---- DATA (packet 1) ----------->|
-  |                                |
-  |<--- ACK (packet 1) ------------|  // Slave confirme la réception
-  |---- DATA (packet 2) ----------->|
-  |                                |
-  |<--- ACK (packet 2) ------------|
-  |              ...               |
+The return value is the last packet number observed, or the packet number from
+the terminating condition.
 
-  // --- Fin de session ---
-  |---- FIN (lastPacket) ---------->|
-  |                                |
-  |<--- FIN (lastPacket) ----------|  // Slave confirme la fin
-  |                                |
-  |         SESSION TERMINÉE       |
- 
----
+#### `closeSession()`
 
-1. **LoraCommunication::LoraCommunication(long frequency, uint8_t localAdd, uint8_t desti, RoleType role)**
-Initialise un objet LoRa avec :
-- freq : fréquence LoRa (ex: 915 MHz)
-- localAddress : adresse locale du device
-- destination : adresse du destinataire
-- deviceRole : MASTER ou SLAVE
-- active : booléen indiquant si LoRa est actif (initialement false)
+Sends a `FIN` packet and waits for a matching `FIN` response. It retries up to
+15 times before returning `false`.
 
-2. **void LoraCommunication::startLoRa()**
-Active le module LoRa avec LoRa.begin(freq).
-- Essaie jusqu’à 3 fois en cas d’échec.
-- Active active = true si réussite.
-- Affiche les logs si debug activé.
+## Configuration update API
 
-3. **void LoraCommunication::stopLoRa()**
-- Désactive le module LoRa (LoRa.end()) et met active = false.
-- Log de confirmation si debug.
+The header also exposes:
 
-4. **setdesttodefault()**
-- Remet la destination à 0xff (broadcast).
+```cpp
+bool receiveConfigUpdate(
+    const char* filepath,
+    uint16_t* outMeasureInterval,
+    uint16_t* outLoraInterval,
+    unsigned long timeout_ms = 15000
+);
+```
 
-5. **void LoraCommunication::sendPacket(uint8_t packetNumber, RequestType requestType, const String &payload)**
-Envoie un paquet LoRa structuré :
-- checksum → pour vérifier l’intégrité
-- destination → destinataire
-- localAddress → émetteur
-- packetNumber → numéro du paquet
-- requestType → SYN, ACK, DATA, FIN
-- payload → contenu du message
-
-Attends un petit délai aléatoire avant d’envoyer pour éviter les collisions.
-Utilise LoRa.beginPacket() et LoRa.endPacket().
-
-6. **bool LoraCommunication::receivePacket(uint8_t &packetNumber, RequestType &requestType, String &payload)**
-- Vérifie s’il y a un paquet disponible (LoRa.parsePacket()).
-- Lit les champs : checksum, destinataire, émetteur, numéro de paquet, type de requête, payload.
-- Vérifie la destination avec isValidDestination.
-- Vérifie la checksum pour l’intégrité.
-- Retourne true si paquet valide reçu.
-
-7. **bool LoraCommunication::isValidDestination(int recipient, int dest, RequestType requestType)**
-- Vérifie si le paquet reçu est destiné à ce device.
-- Si SYN et destination par défaut (0xff) et destinataire connu (myNet), accepte le paquet et définit destination.
-
-8. **bool LoraCommunication::isValidDestination(int recipient, int dest, RequestType requestType)**
-- Vérifie si le paquet reçu est destiné à ce device.
-- Si SYN et destination par défaut (0xff) et destinataire connu (myNet), accepte le paquet et définit destination
-
-9. **uint8_t LoraCommunication::calculateChecksum(...)**
-- Calcul simple XOR entre tous les octets du paquet : recipient, dest, packetNumber, requestType et payload.
-- Permet de détecter les erreurs de transmission.
-
-10. **bool LoraCommunication::isLoRaActive()**
-- Retourne l’état actuel du module (true si LoRa est actif).
-
-11. **bool LoraCommunication::handshake(uint8_t &shift)**
-Gère la synchronisation MASTER/SLAVE :
-- MASTER : envoie SYN → attend SYN-ACK → renvoie ACK
-- SLAVE : attend SYN → renvoie SYN-ACK → attend ACK
-- shift reçoit le numéro du paquet initial pour synchronisation.
-Retry automatique en cas d’échec (max 6 fois).
-
-12. **uint8_t LoraCommunication::sendPackets(std::queue<String> &sendQueue)**
-Envoie tous les messages dans la queue.
-
-Pour chaque message :
-- Envoie DATA
-- Attend ACK
-- Retry jusqu’à 6 fois
-Retourne le nombre de paquets envoyés.
-
-13. **int LoraCommunication::receivePackets(std::queue<String> &receiveQueue)**
-- Attend les paquets entrants pendant 60 secondes ou jusqu’à FIN.
-- Vérifie le numéro du paquet pour éviter les doublons.
-- Push le payload dans la queue receiveQueue.
-- Envoie ACK pour chaque paquet reçu.
-- Retourne le dernier numéro de paquet reçu.
-
-14. **void LoraCommunication::closeSession(int lastPacket)**
-- Envoie FIN pour terminer la session.
-- Attends confirmation FIN de l’autre côté.
-- Retry jusqu’à 3 fois.
-
-## Installation
-
-1. Installer la bibliothèque [LoRa](https://github.com/sandeepmistry/arduino-LoRa) pour Arduino via le Library Manager.
-2. Copier les fichiers LoRa_Molonari.hpp et LoRa_Molonari.cpp dans votre projet Arduino.
-3. Inclure la bibliothèque dans votre sketch 
-
+This API is reserved for the downstream configuration-update workflow and is
+not part of the normal packet/session documentation above.
