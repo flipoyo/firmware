@@ -43,6 +43,7 @@ uint16_t newLoraInterval = LoRaConfig::INITIAL_INTERVAL;
 
 bool rattrapage = RuntimeDefaults::INITIAL_RATTRAPAGE;
 bool a_line_remains_to_log = RuntimeDefaults::INITIAL_LINE_REMAINS_TO_LOG;
+Waiter waiter;
 
 // ----- Setup -----
 void setup() {
@@ -250,7 +251,6 @@ void loop() {
 
         }
         // --- Sommeil jusqu'à prochaine mesure ---
-        Waiter waiter;
         DEBUG_LOG("waiter instancié");
         timeUntilNextMeasure = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes);
         timeUntilNextCommunication = CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes);
