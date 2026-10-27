@@ -43,16 +43,35 @@ bool LoraWANCommunication::begin(const String& appEui, const String& appKey) {
     return true;
 }
 
+// Converts "DD/MM/YYYY" and "HH:MM:SS" into Unix seconds.
+// Returns 0 if either string cannot be fully parsed.
+static int32_t convertDateAndTimeToUnixTime(const String &dateString, const String &timeString) {
+    int day = 0, month = 0, year = 0;
+    int hour = 0, minute = 0, second = 0;
+ 
+    int parsedDateFieldCount = sscanf(dateString.c_str(), "%d/%d/%d", &day, &month, &year);
+    int parsedTimeFieldCount = sscanf(timeString.c_str(), "%d:%d:%d", &hour, &minute, &second);
+ 
+    // Checks if sscanf parsed all 3 values for each field
+    if (parsedDateFieldCount != 3 || parsedTimeFieldCount != 3) {
+        return 0;
+    }
+ 
+    DateTime dateTime(year, month, day, hour, minute, second);
+    return static_cast<int32_t>(dateTime.unixtime());
+}
 
 bool encode(uint8_t *outBuffer, size_t outSize, size_t &messageLength, String inputLine) {
     SensorData msg = SensorData_init_zero;
 
     // Exemple :
-    // "ua4aef7; 27 ; 10/11/2025 ; 16:01:25 ; 1299.00; 1289.00; 1978.00; 1868.00; 2586.00; 2594.00;"
+    // "ua4aef7; 27 ; 10/11/2025 ; 16:01:25 ; relay_receive_date; relay_receive_time; 1299.00; 1289.00; 1978.00; 1868.00; 2586.00; 2594.00;"
     inputLine.trim();
 
     String dateStr = "";
     String timeStr = "";
+    String relayReceptionDateStr = "";
+    String relayReceptionTimeStr = "";
 
     // --- Découpage de la ligne ---
     int fieldIndex = 0;
@@ -80,7 +99,12 @@ bool encode(uint8_t *outBuffer, size_t outSize, size_t &messageLength, String in
             case 3: // Heure
                 timeStr = token;
                 break;
-
+            case 4:
+                relayReceptionDateStr = token;
+                break;
+            case 5:
+                relayReceptionTimeStr = token;
+                break;
             default: // Les mesures
                 msg.measurements[msg.measurements_count] = token.toFloat();
                 msg.measurements_count = (msg.measurements_count < 9) ? msg.measurements_count + 1 : msg.measurements_count;
@@ -91,16 +115,8 @@ bool encode(uint8_t *outBuffer, size_t outSize, size_t &messageLength, String in
         startIndex = sepIndex + 1;
     }
 
-    // --- Conversion date+heure vers Unix seconds ---
-    int jour = 0, mois = 0, annee = 0;
-    int heure = 0, minute = 0, seconde = 0;
-
-    sscanf(dateStr.c_str(), "%d/%d/%d", &jour, &mois, &annee);
-    sscanf(timeStr.c_str(), "%d:%d:%d", &heure, &minute, &seconde);
-
-    DateTime dateTime(annee, mois, jour, heure, minute, seconde);
-    msg.time = static_cast<int32_t>(dateTime.unixtime());
-
+    msg.time = convertDateAndTimeToUnixTime(dateStr, timeStr);
+    msg.relay_receive_time = convertDateAndTimeToUnixTime(relayReceptionDateStr, relayReceptionTimeStr);
 
     // --- Encodage Protobuf ---
     pb_ostream_t stream = pb_ostream_from_buffer(outBuffer, outSize);
@@ -152,7 +168,7 @@ bool LoraWANCommunication::sendAllPacketsAndManageMemoryWAN(std::queue<memory_li
     // handles packet sending and acknowledgement verificaiton, SDOffset updating, and ensures dataFile.position() is at the right place (terminal SDOffset).
 
     while (!sendQueue.empty()) {
-        uint8_t buffer[78];
+        uint8_t buffer[SensorData_size];
         size_t messageLength = 0;
         
         memory_line packet = sendQueue.front();

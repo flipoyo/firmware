@@ -9,12 +9,14 @@
 #error Regenerate this file with the current version of nanopb generator.
 #endif
 
-#define nVersion 1.0.1
+#define nVersion 2.0.0
 
 /* Struct definitions */
+// Despite the struct name (and the following #define names), this message also carries relay metadata (relay_receive_time) to the server, but changing its name from _SensorData requires changing up multiple files
 typedef struct _SensorData {
     char UI[17];                // The unique identifier (EUI) is composed of 16 chars + 1 character for the terminating `\0`
-    int32_t time;
+    int32_t time;               // The time when the sensor recorded the data
+    int32_t relay_receive_time; // The time when the relay received the data from the sensor
     pb_size_t measurements_count;
     float measurements[10];
 } SensorData;
@@ -25,18 +27,20 @@ extern "C" {
 #endif
 
 /* Initializer values for message structs */
-#define SensorData_init_default                  {"", 0, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
-#define SensorData_init_zero                     {"", 0, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
+#define SensorData_init_default                  {"", 0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
+#define SensorData_init_zero                     {"", 0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define SensorData_UI_tag                        1
-#define SensorData_time_tag                      2
+#define SensorData_time_tag                      2      // The actual recording time
+#define SensorData_relay_receive_time_tag        4      // Tags can be any number and they are used to specify a field in encoding/decoding (this tag is 4 and not 3 because relay_receive_time was added later)
 #define SensorData_measurements_tag              3
 
 /* Struct field encoding specification for nanopb */
 #define SensorData_FIELDLIST(X, a) \
 X(a, STATIC,   REQUIRED, STRING,   UI,                1) \
 X(a, STATIC,   REQUIRED, INT32,    time,              2) \
+X(a, STATIC,   REQUIRED, INT32,    relay_receive_time,      4) \
 X(a, STATIC,   REPEATED, FLOAT,    measurements,      3)
 #define SensorData_CALLBACK NULL
 #define SensorData_DEFAULT NULL
@@ -48,7 +52,7 @@ extern const pb_msgdesc_t SensorData_msg;
 
 /* Maximum encoded size of messages (where known) */
 #define SENSOR_PB_H_MAX_SIZE                     SensorData_size
-#define SensorData_size                          78
+#define SensorData_size                          90         // worst-case scenario size for the buffer used for the data
 
 #ifdef __cplusplus
 } /* extern "C" */

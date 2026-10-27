@@ -7,7 +7,7 @@
 #include <SD.h>
 #include <Reader.hpp>
 
-#define nVersion 2.0.0
+#define nVersion 3.0.0
 
 class LoraWANCommunication {
 public:
