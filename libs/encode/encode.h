@@ -11,14 +11,25 @@
 
 #define nVersion 2.0.0
 
-/* Struct definitions */
+
+/* PAYLOAD SIZE LIMIT
+ * LoRaWAN EU868 max application payload: 51 bytes at DR0-DR2, 115 at DR3, 222 at DR4-DR5.
+ * The relay can send at DR0 which is better for long ranges, so the encoded
+ * message must stay <= 51 bytes. Current size: 44 bytes with 6 measurements
+ * (UI 18 + time 6 + relay_receive_time 6 + measurements 14).
+ * Each extra measurement adds about 2 bytes. After adding a field, check the serial output
+ * "Binary payload (length N bytes)".
+ * SensorData_size below is only the worst-case buffer size, not the size that is sent.
+ * Extra: if more bytes are needed to be sent in the future, think about reducing UI size by encoding it differently (NOT REDUCING THE ACTUAL EUI)
+ */
+
 // Despite the struct name (and the following #define names), this message also carries relay metadata (relay_receive_time) to the server, but changing its name from _SensorData requires changing up multiple files
 typedef struct _SensorData {
-    char UI[17];                // The unique identifier (EUI) is composed of 16 chars + 1 character for the terminating `\0`
-    int32_t time;               // The time when the sensor recorded the data
-    int32_t relay_receive_time; // The time when the relay received the data from the sensor
+    char UI[17];                        // The unique identifier (EUI) is composed of 16 chars + 1 character for the terminating `\0`
+    int32_t time;                       // The time when the sensor recorded the data
+    int32_t relay_receive_time;         // The time when the relay received the data from the sensor
     pb_size_t measurements_count;
-    float measurements[10];
+    uint32_t measurements[10];          // Measurements are raw ADC readings from analogRead at 12 bits (0 to 4095) that are exact integers
 } SensorData;
 
 
@@ -34,14 +45,14 @@ extern "C" {
 #define SensorData_UI_tag                        1
 #define SensorData_time_tag                      2      // The actual recording time
 #define SensorData_relay_receive_time_tag        4      // Tags can be any number and they are used to specify a field in encoding/decoding (this tag is 4 and not 3 because relay_receive_time was added later)
-#define SensorData_measurements_tag              3
+#define SensorData_measurements_tag              5      // This was 3 instead of 5 and used to carry floats instead of int. Changing the tag number from 3 to 5 will make an error visible if a decoder is still not updated to expect ints instead of random values
 
 /* Struct field encoding specification for nanopb */
 #define SensorData_FIELDLIST(X, a) \
 X(a, STATIC,   REQUIRED, STRING,   UI,                1) \
 X(a, STATIC,   REQUIRED, INT32,    time,              2) \
 X(a, STATIC,   REQUIRED, INT32,    relay_receive_time,      4) \
-X(a, STATIC,   REPEATED, FLOAT,    measurements,      3)
+X(a, STATIC,   REPEATED, UINT32,    measurements,      5)
 #define SensorData_CALLBACK NULL
 #define SensorData_DEFAULT NULL
 
@@ -52,7 +63,7 @@ extern const pb_msgdesc_t SensorData_msg;
 
 /* Maximum encoded size of messages (where known) */
 #define SENSOR_PB_H_MAX_SIZE                     SensorData_size
-#define SensorData_size                          90         // worst-case scenario size for the buffer used for the data
+#define SensorData_size                          100         // worst-case scenario size for the buffer used for the data
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -106,7 +106,7 @@ bool encode(uint8_t *outBuffer, size_t outSize, size_t &messageLength, String in
                 relayReceptionTimeStr = token;
                 break;
             default: // Les mesures
-                msg.measurements[msg.measurements_count] = token.toFloat();
+                msg.measurements[msg.measurements_count] = static_cast<uint32_t>(token.toInt());
                 msg.measurements_count = (msg.measurements_count < 9) ? msg.measurements_count + 1 : msg.measurements_count;
                 break;
         }
