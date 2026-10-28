@@ -4,7 +4,7 @@
 #include <RTClib.h>
 #include <vector>
 
-#define nVersion 1.1.1
+#define nVersion 1.2.0
 
 // ----- RTC -----
 extern RTC_PCF8523 externalRtc;
@@ -14,7 +14,7 @@ extern int measurementCount;
 // ----- Fonctions -----
 String UIntTo2DigitString(uint8_t x);
 
-void InitialiseRTC();
+void InitialiseRTC(bool forceOverride = false);
 
 String GetCurrentDate();
 String GetCurrentHour();

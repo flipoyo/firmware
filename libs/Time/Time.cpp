@@ -7,12 +7,13 @@
 
 #include "Time.hpp"
 #include "Reader.hpp"
+#include "RtcBattery.hpp"
 
 #define DEBUG_TIME
 #ifdef DEBUG_TIME
-#define DEBUG_LOG(msg) Serial.println(msg)
+  #define DEBUG_LOG(msg) Serial.println(msg)
 #else
-#define DEBUG_LOG(msg)
+  #define DEBUG_LOG(msg)
 #endif
 
 namespace {
@@ -32,14 +33,9 @@ std::vector<unsigned long> measurementTimesVec;
 std::vector<unsigned long> communicationTimesVec;
 
 
-void InitialiseRTC() {
-  if (!externalRtc.begin()) {
-    DEBUG_LOG("Erreur lors de l'initialisation de la RTC externe !");
-  }
-  if (externalRtc.lostPower()) {
-    
-    externalRtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-  }
+void InitialiseRTC(bool forceOverride) {
+  // Check RTC connection, OS (Oscillator stopped) flag, and 2.5V battery threshold
+  VerifyRtcBattery(externalRtc, forceOverride);
   DEBUG_LOG("RTC externe initialisée.");
 }
 
@@ -54,15 +50,15 @@ String UIntTo2DigitString(uint8_t x) {
 String GetCurrentDate() {
   DateTime now = externalRtc.now();
   return UIntTo2DigitString(now.day()) + "/" +
-         UIntTo2DigitString(now.month()) + "/" +
-         String(now.year());
+        UIntTo2DigitString(now.month()) + "/" +
+        String(now.year());
 }
 
 String GetCurrentHour() {
   DateTime now = externalRtc.now();
   return UIntTo2DigitString(now.hour()) + ":" +
-         UIntTo2DigitString(now.minute()) + ":" +
-         UIntTo2DigitString(now.second());
+        UIntTo2DigitString(now.minute()) + ":" +
+        UIntTo2DigitString(now.second());
 }
 
 long GetSecondsSinceMidnight() {
