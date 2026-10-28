@@ -50,7 +50,6 @@ namespace MeasurementConfig {
     constexpr long INITIAL_LAST_MEASURE = 0;       // Initial timestamp of the last measurement.
     constexpr uint16_t INITIAL_INTERVAL = 0;       // Initial measurement interval.
     constexpr long INTERVAL_TOLERANCE_SECONDS = 1; // Measurement scheduling tolerance.
-    constexpr unsigned long SOON_THRESHOLD_MS = 1000; // Threshold for deciding a measurement is imminent.
     constexpr double INITIAL_VALUE = 0;             // Default value stored for a new measurement.
     constexpr uint16_t INITIAL_RECEIVED_INTERVAL = 0; // Default measurement interval received from the relay.
 }
