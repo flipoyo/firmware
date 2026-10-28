@@ -3,17 +3,19 @@
 
 #include <SD.h>
 #include <Arduino.h> 
+
 #include "LoRa_Molonari.hpp"
+#include "Time.hpp"
 
 
 #define DEBUG_LORA
 
 #ifdef DEBUG_LORA
-#define DEBUG_LOG(msg) Serial.println(msg)
-#define DEBUG_LOG_NO_LN(msg) Serial.print(msg)
+    #define DEBUG_LOG(msg) Serial.println(msg)
+    #define DEBUG_LOG_NO_LN(msg) Serial.print(msg)
 #else
-#define DEBUG_LOG(msg)
-#define DEBUG_LOG_NO_LN(msg)
+    #define DEBUG_LOG(msg)
+    #define DEBUG_LOG_NO_LN(msg)
 #endif
 
 LoraCommunication::LoraCommunication(long frequency, String Address_sent, String Address_waited, RoleType role)
@@ -369,6 +371,30 @@ uint8_t LoraCommunication::sendAllPackets(std::queue<String>& sendQueue){
     return nb_packets_sent;
 }
 
+// Inserts the relay reception date and time right after the 4th ';' of a datalogger line.
+// Old version: "UI ; id ; sensor_record_date ; sensor_record_time  ; v1; v2;..."  ->  New version: "UI ; id ; sensor_record_date ; sensor_record_time  ; relay_receive_date ; relay_receive_time ; v1; v2;..."
+static String insertRelayReceptionDateTimeIntoLine(const String &datalogger_line, const String &relay_reception_date, const String &relay_reception_time) {
+    int semicolon_count = 0;
+    int index_after_fourth_semicolon = -1;
+
+    for (unsigned int char_index = 0; char_index < datalogger_line.length(); char_index++) {
+        if (datalogger_line[char_index] == ';') {
+            semicolon_count++;
+            if (semicolon_count == 4) {
+                index_after_fourth_semicolon = char_index + 1;
+                break;
+            }
+        }
+    }
+
+    if (index_after_fourth_semicolon < 0) {
+        DEBUG_LOG("Error: cannot insert relay reception date and time");
+        return datalogger_line;
+    }
+
+    return datalogger_line.substring(0, index_after_fourth_semicolon) + " " + relay_reception_date + " ; " + relay_reception_time + " ;" + datalogger_line.substring(index_after_fourth_semicolon);
+}
+
 int LoraCommunication::receiveAllPackets(std::queue<String> &receiveQueue) {
     uint8_t packetNumber = 0; String payload; RequestType requestType; uint8_t prevPacket = -1;
     unsigned long startTime = millis(); int ackTimeout = 60000;
@@ -381,7 +407,12 @@ int LoraCommunication::receiveAllPackets(std::queue<String> &receiveQueue) {
                     if (receiveQueue.size() >= MAX_QUEUE_SIZE) return packetNumber;
                     if (prevPacket == packetNumber) { sendPacket(packetNumber, ACK, payload); break; }
                     prevPacket = packetNumber;
-                    receiveQueue.push(payload);
+                    {
+                        // The ACK (acknowledge) must keep the original payload because the datalogger compares it with what it sent, and a modified one would make it retry forever.
+                        String relay_reception_date = GetCurrentDate();
+                        String relay_reception_time = GetCurrentHour();
+                        receiveQueue.push(insertRelayReceptionDateTimeIntoLine(payload, relay_reception_date, relay_reception_time));
+                    }
                     sendPacket(packetNumber, ACK, payload);
             }
         }
