@@ -150,7 +150,7 @@ void loop() {
             lora.stopLoRa();
 
             // Met quand même à jour lastAttempt pour réessayer après l'intervalle de temps
-            lastAttempt = GetSecondsSinceMidnight();
+            //lastAttempt = GetSecondsSinceMidnight();
         }
 
         // Envoi via LoRaWAN si intervalle complet atteint
@@ -198,7 +198,7 @@ void loop() {
         } else {
             DEBUG_LOG("Connexion LoRaWAN impossible, report de l’envoi.");
         }
-        lastLoraSend = currentTime;
+        lastLoraSend = GetSecondsSinceMidnight();
     
         DEBUG_LOG("about to loop on modem.available()");
         // reception csv et modification
@@ -218,7 +218,9 @@ void loop() {
             delay(100);
         }
     #endif
-    LowPower.idle(uint32_t(time_to_sleep));
+    if (time_to_sleep > 0) {
+        LowPower.idle(uint32_t(time_to_sleep));
+    }
     #ifdef DEBUG_MAIN
         for(int i = 0; i < 5; i++) {
             digitalWrite(LED_BUILTIN, HIGH);

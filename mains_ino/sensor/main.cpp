@@ -222,7 +222,7 @@ void loop() {
             }    // <-- fermeture du while : on a tout envoyé ou on va bientôt faire une mesure !
 
             dataFile.close();
-            lastLoRaSend = current_Time;
+            lastLoRaSend = GetSecondsSinceMidnight();
 
             // --- Réception éventuelle de mise à jour config ---
             DEBUG_LOG("Vérification de mise à jour descendante...");
