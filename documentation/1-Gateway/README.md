@@ -1,8 +1,8 @@
-This was done in 2026 by Santiago Estrada (P26Estrada)
+This was done in 2026 by Santiago Estrada (26Estrada)
 
 # Onboarding Robustel R3000 - LG4LA
 
-This is the onboarding guide to the Gateway. I will do my best to make it understandable and funny so you don't get as bored as I did. Whenever an AI intervention occurs (which will happen often), I will mark it down so you know. Call it my work-ethic (I hate reading AI generated content).
+This is the onboarding guide to the Gateway. I will do my best to make it understandable and funny so you don't get as bored as I did. Whenever an AI intervention occurs (which may happen often), I will mark it down so you know. Call it my work-ethic (I hate reading AI generated content).
 
 ## Step 1: Power
 
