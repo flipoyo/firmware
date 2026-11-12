@@ -35,7 +35,7 @@ Go into the folder `MOLONARI/MOLONARI-API`. You will find a bunch of folders and
 
 Your VS Code window should look as follows:
 
-![VPS](..\imgs\VPS-init.png)
+![VPS](../imgs/VPS-init.png)
 
 Notice that the down-left corner indicates that you are connected to a machine using SSH. At this point, you can tell your friends "I'm in", as if you were a true hacker.
 
@@ -56,7 +56,7 @@ pixi run run-server
 ```
 You should get something like the following image, meaning that the server is up and running.
 
-![Server runnning](..\imgs\VPS-pixi.png)
+![Server runnning](../imgs/VPS-pixi.png)
 
 Whenever something is sent to ChirpStack, the server will intercept it, print the event in the terminal, and update the SQLite database. 
 
