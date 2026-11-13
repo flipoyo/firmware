@@ -6,7 +6,7 @@
 #include <vector>
 #include <queue>
 
-#define nVersion 1.0.2
+#define nVersion 1.1.0
 
 // ---- Structures globales ----
 struct SensorConfig {
@@ -25,6 +25,8 @@ struct RelayConfig {
     String appEui;
     String appKey;
     String devEui; // utile pour le sensor
+    std::vector<String> dataloggers_EUIs;     // list of all the dataloggers EUIs in the relay's config file
+    int datalogger_slot = 0;
     int CSPin;
     float lora_freq;
     int intervalle_de_mesure_secondes;

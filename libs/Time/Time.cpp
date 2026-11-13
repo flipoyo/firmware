@@ -92,3 +92,34 @@ long CalculateSleepTimeUntilNextCommunication(long previousCommunicationTime, in
   }
   return (time_to_sleep);
 }
+
+// Checks if the current RTC time falls within [offsetSeconds, offsetSeconds + toleranceSeconds] of the aligned cycle
+bool IsInAlignedSlotWindow(int intervalSeconds, int offsetSeconds, int toleranceSeconds) {
+  
+  if (intervalSeconds <= 0) return true;
+  
+  long now = GetSecondsSinceMidnight();
+  long effectiveOffset = offsetSeconds % intervalSeconds;
+  long currentCyclePos = now % intervalSeconds;
+  long diff = currentCyclePos - effectiveOffset;
+  
+  if (diff < 0) diff += intervalSeconds;
+  
+  return diff <= toleranceSeconds;
+}
+
+// Returns milliseconds until the next RTC-aligned slot (+1000ms margin so deepSleep never wakes up 1s early)
+long CalculateSleepTimeUntilNextAlignedSlot(int intervalSeconds, int offsetSeconds) {
+  if (intervalSeconds <= 0) return 0;
+  
+  long now = GetSecondsSinceMidnight();
+  long effectiveOffset = offsetSeconds % intervalSeconds;
+  long currentCyclePos = now % intervalSeconds;
+  long waitSeconds = effectiveOffset - currentCyclePos;
+  
+  if (waitSeconds <= 0) {
+    waitSeconds += intervalSeconds;
+  }
+  
+  return (waitSeconds * 1000L) + 1000L;
+}

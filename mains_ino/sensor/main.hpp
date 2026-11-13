@@ -16,7 +16,7 @@
 
 
 namespace Version {
-    constexpr const char* VERSION = "1.2.20";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
+    constexpr const char* VERSION = "1.3.0";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
 }
 
 namespace SerialConfig {
@@ -40,9 +40,10 @@ namespace LoRaConfig {
     constexpr long INITIAL_LAST_SEND = 0;           // Initial timestamp of the last LoRa transmission.
     constexpr uint16_t INITIAL_INTERVAL = 0;        // Initial LoRa transmission interval.
     constexpr uint16_t INITIAL_RECEIVED_INTERVAL = 0; // Default interval received from the relay.
-    constexpr long INTERVAL_TOLERANCE_SECONDS = 60; // Early-send margin for LoRa scheduling.
+    constexpr long INTERVAL_TOLERANCE_SECONDS = 10; // Early-send margin for LoRa scheduling.
     constexpr uint8_t INITIAL_HANDSHAKE_ID = 0;    // Initial identifier used during the LoRa handshake.
     constexpr uint8_t INITIAL_SESSION_PACKET = 0;  // Default packet value when closing a LoRa session.
+    constexpr int SLOT_DURATION_SECONDS = 40;
 }
 
 namespace MeasurementConfig {

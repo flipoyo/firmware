@@ -75,8 +75,10 @@ void setup() {
             res.rel_config.lora_freq = config_from_sd.rel_config.lora_freq;
         }
         if (config_from_sd.int_config.lora_intervalle_secondes > 0) {
-            res.int_config.lora_intervalle_secondes =
-                config_from_sd.int_config.lora_intervalle_secondes;
+            res.int_config.lora_intervalle_secondes = config_from_sd.int_config.lora_intervalle_secondes;
+        }
+        if (!config_from_sd.rel_config.dataloggers_EUIs.empty()) {
+            res.rel_config.dataloggers_EUIs = config_from_sd.rel_config.dataloggers_EUIs;
         }
     }
     DEBUG_LOG("Configuration chargée.");
@@ -108,49 +110,65 @@ void setup() {
 void loop() {
     long currentTime = GetSecondsSinceMidnight();
     
-    if (CalculateElapsedSeconds(currentTime, lastAttempt) >= res.int_config.lora_intervalle_secondes) {
+    if (IsInAlignedSlotWindow(res.int_config.lora_intervalle_secondes, 0 , 10) && (lastAttempt == RuntimeDefaults::INITIAL_LAST_ATTEMPT || CalculateElapsedSeconds(currentTime, lastAttempt) >= 20)) {
+
         DEBUG_LOG("Réveil du relais pour vérification communication LoRa...");
-        DEBUG_LOG("Fenêtre de communication LoRa atteinte, tentative de réception des paquets...");
-        std::queue<String> receiveQueue;
-        lora.startLoRa();
+        long windowStart = GetSecondsSinceMidnight();
 
-        // Réception des paquets via LoRa
-        uint8_t deviceId = RuntimeDefaults::INITIAL_DEVICE_ID; // initialise avec packetNumber = 0
-        if (lora.handshake(deviceId)) {
+        // Anchor windowStart to the exact multiple of lora_intervalle_secondes (e.g. 0s)
+        windowStart -= (windowStart % res.int_config.lora_intervalle_secondes);
 
-            DEBUG_LOG("Handshake réussi. Réception des paquets...");
-            int last = lora.receiveAllPackets(receiveQueue);
-            DEBUG_LOG("Packets received when close session : " + String(last));
-            lora.sendPacket(last, FIN, "FIN"); // Répond par un FIN de confirmation;
+        // Met à jour le temps de la dernière tentative de réception
+        lastAttempt = GetSecondsSinceMidnight();
 
-            // Met à jour le temps de la dernière tentative de réception
-            lastAttempt = GetSecondsSinceMidnight();
+        // Poll each configured datalogger sequentially in its dedicated time slot (i * SLOT_DURATION_SECONDS)
+        for (size_t i = 0; i < res.rel_config.dataloggers_EUIs.size(); i++) {
+            String targetEui = res.rel_config.dataloggers_EUIs[i];
+            long targetOffsetSec = static_cast<long>(i) * LoRaConfig::SLOT_DURATION_SECONDS;
 
-            //envoie du csv
-            if (modif==true) { // normalement modif est toujours false pour l'instant : la focntion de modif n'est pa sbien implémentée
-                File config = SD.open(Storage::CONFIG_FILE, FILE_READ);
-                config.seek(lastSDOffsetConfig);
-                std::queue<memory_line> lines_config;
-
-                while (config.available()) {
-                    memory_line new_line = memory_line(config.readStringUntil('\n'), config.position());
-                    lines_config.push(new_line);
-                    
-                        uint8_t lastPacket = lora.sendAllPacketsAndManageMemory(lines_config, lastSDOffsetConfig);
-                        lora.closeSession(lastPacket);
-
-                        modif = !(lastSDOffsetConfig == config.position());
-                }
+            // Wait until the exact RTC second for this datalogger's slot (0s, 40s, ...)
+            while (CalculateElapsedSeconds(GetSecondsSinceMidnight(), windowStart) < targetOffsetSec) {
+                lora.stopLoRa();
+                delay(200);
             }
-            lora.stopLoRa();
 
-            logger.LogString(receiveQueue); 
-        } else {
-            DEBUG_LOG("Handshake échoué, aucune donnée reçue.");
-            lora.stopLoRa();
+            std::queue<String> receiveQueue;
+            lora.startLoRa();
+            lora.setAddressWaited(targetEui);
+            DEBUG_LOG("Tentative de réception depuis le capteur [" + String(i) + "] : " + targetEui);
+            // Réception des paquets via LoRa
+            uint8_t deviceId = RuntimeDefaults::INITIAL_DEVICE_ID; // initialise avec packetNumber = 0
+            if (lora.handshake(deviceId)) {
 
-            // Met quand même à jour lastAttempt pour réessayer après l'intervalle de temps
-            lastAttempt = GetSecondsSinceMidnight();
+                DEBUG_LOG("Handshake réussi. Réception des paquets...");
+                int last = lora.receiveAllPackets(receiveQueue);
+                DEBUG_LOG("Packets received when close session : " + String(last));
+                lora.sendPacket(last, FIN, "FIN"); // Répond par un FIN de confirmation;
+                
+                // Envoie du csv
+                if (modif==true) { // normalement modif est toujours false pour l'instant : la focntion de modif n'est pa sbien implémentée
+                    File config = SD.open(Storage::CONFIG_FILE, FILE_READ);
+                    config.seek(lastSDOffsetConfig);
+                    std::queue<memory_line> lines_config;
+        
+                    while (config.available()) {
+                        memory_line new_line = memory_line(config.readStringUntil('\n'), config.position());
+                        lines_config.push(new_line);
+                        
+                            uint8_t lastPacket = lora.sendAllPacketsAndManageMemory(lines_config, lastSDOffsetConfig);
+                            lora.closeSession(lastPacket);
+        
+                            modif = !(lastSDOffsetConfig == config.position());
+                    }
+                }
+
+                lora.stopLoRa();
+                logger.LogString(receiveQueue); 
+
+            } else {
+                DEBUG_LOG("Handshake échoué avec " + targetEui + ", aucune donnée reçue.");
+                lora.stopLoRa();
+            }
         }
 
         // Envoi via LoRaWAN si intervalle complet atteint
@@ -165,10 +183,10 @@ void loop() {
 
         if (loraWAN.begin(res.rel_config.appEui, res.rel_config.appKey)) {
             DEBUG_LOG("appKey : " + String(res.rel_config.appKey));
-            DEBUG_LOG("temps avant communication : " + String(CalculateSleepTimeUntilNextCommunication(lastAttempt, res.int_config.lora_intervalle_secondes)));
+            DEBUG_LOG("temps avant communication : " + String(CalculateSleepTimeUntilNextAlignedSlot(res.int_config.lora_intervalle_secondes, 0)));
 
 
-            while (CalculateSleepTimeUntilNextCommunication(lastAttempt, res.int_config.lora_intervalle_secondes) > LoRaConfig::MIN_SLEEP_MS && dataFile.available()) { //racourcir de Radio::MIN_SLEEP_MS à 10000 pour les besoins de la démo
+            while (CalculateSleepTimeUntilNextAlignedSlot(res.int_config.lora_intervalle_secondes, 0) > LoRaConfig::MIN_SLEEP_MS && dataFile.available()) { //racourcir de Radio::MIN_SLEEP_MS à 10000 pour les besoins de la démo
                 //at this point, lastSDOffset must point to the first memory address of the first line to be sent
                 DEBUG_LOG("entrée dans le while d'envoi LoRaWAN");
                 std::queue<memory_line> linesToSend;
@@ -201,7 +219,7 @@ void loop() {
             DEBUG_LOG("Connexion LoRaWAN impossible, report de l’envoi.");
         }
         lastLoraSend = currentTime;
-    
+
         DEBUG_LOG("about to loop on modem.available()");
         // reception csv et modification
         while (modem.available()) {
@@ -209,25 +227,22 @@ void loop() {
             modif = true;
         }
 
-    DEBUG_LOG("Relais en veille jusqu’à la prochaine fenêtre de communication...");
-    long time_to_sleep = CalculateSleepTimeUntilNextCommunication(lastAttempt, res.int_config.lora_intervalle_secondes); 
-    DEBUG_LOG("sleeping until next communication " + String (time_to_sleep) + "ms");
-    #ifdef DEBUG_MAIN
-        for(int i = 0; i < 5; i++) {
-            digitalWrite(LED_BUILTIN, HIGH);
-            delay(100);
-            digitalWrite(LED_BUILTIN, LOW);
-            delay(100);
-        }
-    #endif
-    LowPower.idle(uint32_t(time_to_sleep));
-    #ifdef DEBUG_MAIN
-        for(int i = 0; i < 5; i++) {
-            digitalWrite(LED_BUILTIN, HIGH);
-            delay(300);
-            digitalWrite(LED_BUILTIN, LOW);
-            delay(100);
-        }
-    #endif
+        DEBUG_LOG("Relais en veille jusqu’à la prochaine fenêtre de communication...");
+        long time_to_sleep = CalculateSleepTimeUntilNextAlignedSlot(res.int_config.lora_intervalle_secondes, 0);
+        DEBUG_LOG("sleeping until next communication " + String (time_to_sleep) + "ms");
+        #ifdef DEBUG_MAIN
+            for(int i = 0; i < 5; i++) {
+                digitalWrite(LED_BUILTIN, HIGH);
+                delay(100);
+                digitalWrite(LED_BUILTIN, LOW);
+                delay(100);
+            }
+        #endif
+        waiter.sleepFor(time_to_sleep);
+    } 
+    else {
+        // Sleep until the aligned window when the relay boots mid-cycle
+        long time_to_sleep = CalculateSleepTimeUntilNextAlignedSlot(res.int_config.lora_intervalle_secondes, 0);
+        waiter.sleepFor(time_to_sleep);
     }
 }

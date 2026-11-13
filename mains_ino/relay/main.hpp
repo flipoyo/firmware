@@ -17,7 +17,7 @@
 #endif
 
 namespace Version {
-    constexpr const char* VERSION = "1.4.1";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
+    constexpr const char* VERSION = "1.5.0";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
 }
 
 // Serial Configuration
@@ -36,6 +36,7 @@ namespace LoRaConfig {
     constexpr long FREQUENCY_Hz = 868e6;        // Main frequency band used by LoRa and LoRaWAN in Europe (868 MHz)
     constexpr int INITIAL_INTERVAL_SECONDS = 3600;
     constexpr uint32_t MIN_SLEEP_MS = 10000;    // Minimum time left before next window to send LoRaWAN packets
+    constexpr int SLOT_DURATION_SECONDS = 40;
 }
 
 // SD card file paths

@@ -4,7 +4,7 @@
 #include <RTClib.h>
 #include <vector>
 
-#define nVersion 1.2.0
+#define nVersion 1.3.0
 
 // ----- RTC -----
 extern RTC_PCF8523 externalRtc;
@@ -23,5 +23,8 @@ long CalculateElapsedSeconds(long currentTime, long previousTime);
 
 long CalculateSleepTimeUntilNextMeasurement(long previousMeasurementTime, int measurementInterval);
 long CalculateSleepTimeUntilNextCommunication(long previousCommunicationTime, int communicationInterval);
+
+bool IsInAlignedSlotWindow(int intervalSeconds, int offsetSeconds, int toleranceSeconds);
+long CalculateSleepTimeUntilNextAlignedSlot(int intervalSeconds, int offsetSeconds = 0);
 
 #endif // MY_TIME
