@@ -8,7 +8,7 @@
 
 #include <Reader.hpp>
 
-#define nVersion 3.0.1
+#define nVersion 3.1.0
 
 enum RequestType : uint8_t {
     SYN  = 0xcc,
@@ -31,6 +31,7 @@ public:
     void startLoRa();
     void stopLoRa();
     void setdesttodefault();
+    void setAddressWaited(const String &addr);
 
     // Communication
     void sendPacket(uint8_t packetNumber, RequestType requestType, const String &payload);

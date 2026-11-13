@@ -17,8 +17,9 @@ T3,temperature,A3
 T4,temperature,A4
 T5,temperature,A5
 
-#Configuration du sensor
+# Configuration des dataloggers
 devEui,a8610a34334d710d
+devEui, newValueToBeAddedForNewSensor
 
 #Configuration relay 
 appEui,a8610a35391d6f08

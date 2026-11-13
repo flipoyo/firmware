@@ -23,6 +23,7 @@ GeneralConfig config;
 std::vector<SensorConfig> liste_capteurs;
 int lora_intervalle_secondes = LoRaConfig::INITIAL_INTERVAL;
 int intervalle_de_mesure_secondes = MeasurementConfig::INITIAL_INTERVAL;
+int datalogger_slot = 0;            // a variable that will hold the index of the current arduino datalogger (defined in the sensor's config file); initially initialized to zero
 String devEui;
 String appEui;
 
@@ -83,6 +84,9 @@ void setup() {
         if (temp_config_container.rel_config.lora_freq > 0) {
             lora_frequency = static_cast<long>(temp_config_container.rel_config.lora_freq);
         }
+        if (temp_config_container.rel_config.datalogger_slot >= 0) {
+            datalogger_slot = temp_config_container.rel_config.datalogger_slot;
+        }
     }
 
     if (temp_config_container.succes){
@@ -137,6 +141,10 @@ void loop() {
     // --- Prendre mesures ---
     long current_Time=GetSecondsSinceMidnight();
     DEBUG_LOG("Temps actuel : " + String(current_Time));
+
+    // Compute this datalogger's staggered transmission offset within the global LoRa cycle
+    int myOffsetSeconds = datalogger_slot * LoRaConfig::SLOT_DURATION_SECONDS;
+    bool IsTimeToLoRa = IsInAlignedSlotWindow(lora_intervalle_secondes, myOffsetSeconds, LoRaConfig::INTERVAL_TOLERANCE_SECONDS) && (CalculateElapsedSeconds(GetSecondsSinceMidnight(), lastLoRaSend) >= 20);
     bool IsTimeToMeasure = (CalculateElapsedSeconds(current_Time, lastMeasure) >= (intervalle_de_mesure_secondes - MeasurementConfig::INTERVAL_TOLERANCE_SECONDS));
     
     DEBUG_LOG("ncapt : " + String(ncapt)); //so far
@@ -168,10 +176,7 @@ void loop() {
         a_line_remains_to_log = false;
     }
 
-    // --- Envoyer LoRa si intervalle atteint ---
-    
-    bool IsTimeToLoRa = (CalculateElapsedSeconds(current_Time, lastLoRaSend) >= (lora_intervalle_secondes - LoRaConfig::INTERVAL_TOLERANCE_SECONDS));
-
+    // --- Envoyer LoRa si intervalle atteint ---    
     if (IsTimeToLoRa || rattrapage) {
         digitalWrite(LED_BUILTIN, HIGH);
         File dataFile = SD.open(Storage::DATA_FILE_NAME, FILE_READ);
@@ -194,11 +199,11 @@ void loop() {
 
             DEBUG_LOG(String(dataFile.available()));
             bool time_to_mesure_soon = timeUntilNextMeasure < Timing::SOON_THRESHOLD_MS;
-            if(time_to_mesure_soon){
-                DEBUG_LOG("Aborting LoRa send, measurement scheduled soon. Switching to rattrapage mode");
-                lora.closeSession(LoRaConfig::INITIAL_SESSION_PACKET);
-                rattrapage = true;
-            }
+            // if(time_to_mesure_soon){
+            //     DEBUG_LOG("Aborting LoRa send, measurement scheduled soon. Switching to rattrapage mode");
+            //     lora.closeSession(LoRaConfig::INITIAL_SESSION_PACKET);
+            //     rattrapage = true;
+            // }
             while ( (!time_to_mesure_soon) && dataFile.available()) { //racourcir de 60000 à 10000 pour les besoins de la démo                
                 //at this point, lastSDOffset must point to the first memory address of the first line to be sent
                 std::queue<memory_line> linesToSend;
@@ -223,7 +228,7 @@ void loop() {
                 lora.closeSession(lastPacket);
             }    // <-- fermeture du while : on a tout envoyé ou on va bientôt faire une mesure !
 
-            lastLoRaSend = GetSecondsSinceMidnight();
+            dataFile.close();
 
             // --- Réception éventuelle de mise à jour config ---
             DEBUG_LOG("Vérification de mise à jour descendante...");
@@ -271,7 +276,7 @@ void loop() {
     #endif
 
     timeUntilNextMeasure = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes);
-    timeUntilNextCommunication = CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes);
+    timeUntilNextCommunication = CalculateSleepTimeUntilNextAlignedSlot(lora_intervalle_secondes, myOffsetSeconds);
     
     if (timeUntilNextMeasure <= timeUntilNextCommunication){
         long time_to_sleep = timeUntilNextMeasure;

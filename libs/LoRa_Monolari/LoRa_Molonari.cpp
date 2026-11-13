@@ -61,6 +61,11 @@ void LoraCommunication::setdesttodefault() {
     Address_waited = String(0xff);
 }
 
+// Updates the target datalogger EUI expected by the relay during multi-sensor polling
+void LoraCommunication::setAddressWaited(const String &addr) {
+    Address_waited = addr;
+}
+
 void LoraCommunication::sendPacket(uint8_t packetNumber, RequestType requestType, const String &payload) {
     if (!active) { DEBUG_LOG("LoRa inactive"); return; }
     if (Address_sent.length() > 16 || Address_waited.length() > 16) {

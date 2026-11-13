@@ -62,10 +62,13 @@ GeneralConfig Reader::lireConfigCSV(const char* NomFichier, int CSPin) {
             else if (key == "appKey") res.rel_config.appKey = String(val);
             else if (key == "CSPin") res.rel_config.CSPin = val.toInt();
             else if (key == "lora_freq") res.rel_config.lora_freq = val.toFloat();
-            else if (key== "devEui") res.rel_config.devEui = String(val);
-
-
-
+            // Store single EUI for sensor mode and append to EUI list for multi-sensor relay mode
+            else if (key == "devEui") {
+                res.rel_config.devEui = String(val);
+                res.rel_config.dataloggers_EUIs.push_back(String(val));
+            }
+            else if (key == "datalogger_slot") res.rel_config.datalogger_slot = val.toInt();
+            
             //config générale des intervallesww
             else if (key == "intervalle_de_mesure_secondes") {
                 res.int_config.intervalle_de_mesure_secondes = val.toInt();
