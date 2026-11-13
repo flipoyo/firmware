@@ -92,7 +92,8 @@ void setup() {
         DEBUG_LOG("échec de la lecture du fichier config");
     }
 
-    lora.LoraUpdateAttributes(lora_frequency, appEui, devEui, RoleType::SLAVE);
+    // Pass devEui (datalogger address) and appEui (relay address) in the order expected by LoraUpdateAttributes
+    lora.LoraUpdateAttributes(lora_frequency, devEui, appEui, RoleType::SLAVE);
 
     // Compter les capteurs
     for (auto& _c : liste_capteurs) {
@@ -112,8 +113,9 @@ void setup() {
 
     // Initialisation SD et logger
     if (!SD.begin(Pins::SD_CHIP_SELECT_PIN)) { while(true) {} }
-    logger.EstablishConnection(Pins::SD_CHIP_SELECT_PIN);
+    // Initialize RTC before logger connection so SD file operations have valid timestamps
     InitialiseRTC();
+    logger.EstablishConnection(Pins::SD_CHIP_SELECT_PIN);
     digitalWrite(LED_BUILTIN, LOW);
     delay(100);
     digitalWrite(LED_BUILTIN, HIGH);
@@ -221,7 +223,6 @@ void loop() {
                 lora.closeSession(lastPacket);
             }    // <-- fermeture du while : on a tout envoyé ou on va bientôt faire une mesure !
 
-            dataFile.close();
             lastLoRaSend = GetSecondsSinceMidnight();
 
             // --- Réception éventuelle de mise à jour config ---
@@ -238,42 +239,48 @@ void loop() {
                 DEBUG_LOG("Pas de mise à jour reçue.");
             }
 
+            lastLoRaSend = GetSecondsSinceMidnight();
             lora.stopLoRa();
             digitalWrite(LED_BUILTIN, LOW);
         } else {
             DEBUG_LOG("Handshake échoué");
+            // Release SD file handle and turn off radio on failed handshake to prevent resource leaks
+            dataFile.close();
+            lora.stopLoRa();
+            rattrapage = false;
             for (int blink = 0; blink < 5; blink++) {
-            digitalWrite(LED_BUILTIN, HIGH);
-            delay(200);
-            digitalWrite(LED_BUILTIN, LOW);
-            delay(300);
+                digitalWrite(LED_BUILTIN, HIGH);
+                delay(200);
+                digitalWrite(LED_BUILTIN, LOW);
+                delay(300);
             }
-
+            lastLoRaSend = GetSecondsSinceMidnight();
         }
-        // --- Sommeil jusqu'à prochaine mesure ---
-        DEBUG_LOG("waiter instancié");
-        timeUntilNextMeasure = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes);
-        timeUntilNextCommunication = CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes);
-        
-        if (timeUntilNextMeasure <= timeUntilNextCommunication){
-            long time_to_sleep = timeUntilNextMeasure;
-            DEBUG_LOG("sleeping until next measure, sleeping for " + String (time_to_sleep)+ "ms");
-            waiter.sleepFor(timeUntilNextMeasure);
-        } else {
-            DEBUG_LOG("sleeping until next communication " + String (timeUntilNextCommunication)+"ms");
-            waiter.sleepFor(timeUntilNextCommunication);
-        }
+    }
+    // --- Sommeil jusqu'à prochaine mesure ---
+    DEBUG_LOG("waiter instancié");
 
-        #ifdef DEBUG_MAIN
-        // Blink for when it wakes up from sleep, to indicate that it is awake and running the loop again
+    #ifdef DEBUG_MAIN
+        // Blink for when it should go to sleep
         for (int blink = 0; blink < 5; blink++) {
             digitalWrite(LED_BUILTIN, HIGH);
             delay(100);
             digitalWrite(LED_BUILTIN, LOW);
             delay(100);
         }
-        #endif
+    #endif
 
-        digitalWrite(LED_BUILTIN, LOW);
+    timeUntilNextMeasure = CalculateSleepTimeUntilNextMeasurement(lastMeasure, intervalle_de_mesure_secondes);
+    timeUntilNextCommunication = CalculateSleepTimeUntilNextCommunication(lastLoRaSend, lora_intervalle_secondes);
+    
+    if (timeUntilNextMeasure <= timeUntilNextCommunication){
+        long time_to_sleep = timeUntilNextMeasure;
+        DEBUG_LOG("sleeping until next measure, sleeping for " + String (time_to_sleep)+ "ms");
+        waiter.sleepFor(timeUntilNextMeasure);
+    } else {
+        DEBUG_LOG("sleeping until next communication " + String (timeUntilNextCommunication)+"ms");
+        waiter.sleepFor(timeUntilNextCommunication);
     }
+
+    digitalWrite(LED_BUILTIN, LOW);
 }
