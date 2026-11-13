@@ -17,7 +17,7 @@
 #endif
 
 namespace Version {
-    constexpr const char* VERSION = "1.6.0";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
+    constexpr const char* VERSION = "2.0.0";        // Hardcoding it even after defining the three previous values for better performance on low-performace devices (like the Arduino)
 }
 
 // Serial Configuration
