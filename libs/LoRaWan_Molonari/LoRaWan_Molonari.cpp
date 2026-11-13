@@ -182,17 +182,17 @@ bool LoraWANCommunication::sendAllPacketsAndManageMemoryWAN(std::queue<memory_li
 
         int send_retries = 0;
         int err = 0;
-        while(send_retries < 2 && err <= 0){ //remettre send_retries à 10 après test
+        const int max_retries = 3; // Limit retries per wakeup window to avoid blocking the cycle
+        while(send_retries < max_retries && err <= 0){ //remettre send_retries à 10 après test
             modem.beginPacket();
-
-
             modem.write(buffer, messageLength);
 
             err = modem.endPacket(true);
             if (err <= 0) {
                 LORA_LOG_LN("échec d'envoi de : " + packet.flush);
                 LORA_LOG_LN("Erreur d’envoi, nouvelle tentative...");
-                delay(1000);//remettre à 10 000 après les tetst
+                // Backoff 5s between retries to respect EU868 duty-cycle limits
+                delay(5000); //remettre à 10 000 après les tetst
             }
             send_retries++;
         }
@@ -207,8 +207,9 @@ bool LoraWANCommunication::sendAllPacketsAndManageMemoryWAN(std::queue<memory_li
             dataFile.seek(SDOffset);
             return false;
         }
-        delay(5000);
 
+        // Space out consecutive LoRaWAN uplinks by 5s to prevent duty-cycle saturation
+        delay(5000);
     }
     return true;
 }
