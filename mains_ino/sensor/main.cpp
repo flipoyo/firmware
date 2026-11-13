@@ -24,6 +24,7 @@ std::vector<SensorConfig> liste_capteurs;
 int lora_intervalle_secondes = LoRaConfig::INITIAL_INTERVAL;
 int intervalle_de_mesure_secondes = MeasurementConfig::INITIAL_INTERVAL;
 int datalogger_slot = 0;            // a variable that will hold the index of the current arduino datalogger (defined in the sensor's config file); initially initialized to zero
+int time_window = LoRaConfig::SLOT_DURATION_SECONDS; // duration in seconds of each datalogger's TDMA communication slot
 String devEui;
 String appEui;
 
@@ -87,6 +88,9 @@ void setup() {
         if (temp_config_container.rel_config.datalogger_slot >= 0) {
             datalogger_slot = temp_config_container.rel_config.datalogger_slot;
         }
+        if (temp_config_container.rel_config.time_window > 0) {
+            time_window = temp_config_container.rel_config.time_window;
+        }
     }
 
     if (temp_config_container.succes){
@@ -143,7 +147,7 @@ void loop() {
     DEBUG_LOG("Temps actuel : " + String(current_Time));
 
     // Compute this datalogger's staggered transmission offset within the global LoRa cycle
-    int myOffsetSeconds = datalogger_slot * LoRaConfig::SLOT_DURATION_SECONDS;
+    int myOffsetSeconds = datalogger_slot * time_window;
     bool IsTimeToLoRa = IsInAlignedSlotWindow(lora_intervalle_secondes, myOffsetSeconds, LoRaConfig::INTERVAL_TOLERANCE_SECONDS) && (CalculateElapsedSeconds(GetSecondsSinceMidnight(), lastLoRaSend) >= 20);
     bool IsTimeToMeasure = (CalculateElapsedSeconds(current_Time, lastMeasure) >= (intervalle_de_mesure_secondes - MeasurementConfig::INTERVAL_TOLERANCE_SECONDS));
     

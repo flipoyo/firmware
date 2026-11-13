@@ -57,6 +57,7 @@ void setup() {
     res.rel_config.CSPin = Pins::SD_CS;
     res.rel_config.lora_freq = LoRaConfig::FREQUENCY_Hz;
     res.int_config.lora_intervalle_secondes = LoRaConfig::INITIAL_INTERVAL_SECONDS;
+    res.rel_config.time_window = LoRaConfig::SLOT_DURATION_SECONDS;
 
     if (config_from_sd.succes) {
         if (config_from_sd.rel_config.appEui.length() > 0) {
@@ -79,6 +80,9 @@ void setup() {
         }
         if (!config_from_sd.rel_config.dataloggers_EUIs.empty()) {
             res.rel_config.dataloggers_EUIs = config_from_sd.rel_config.dataloggers_EUIs;
+        }
+        if (config_from_sd.rel_config.time_window > 0) {
+            res.rel_config.time_window = config_from_sd.rel_config.time_window;
         }
     }
     DEBUG_LOG("Configuration chargée.");
@@ -121,10 +125,10 @@ void loop() {
         // Met à jour le temps de la dernière tentative de réception
         lastAttempt = GetSecondsSinceMidnight();
 
-        // Poll each configured datalogger sequentially in its dedicated time slot (i * SLOT_DURATION_SECONDS)
+        // Poll each configured datalogger sequentially in its dedicated time slot (i * res.rel_config.time_window)
         for (size_t i = 0; i < res.rel_config.dataloggers_EUIs.size(); i++) {
             String targetEui = res.rel_config.dataloggers_EUIs[i];
-            long targetOffsetSec = static_cast<long>(i) * LoRaConfig::SLOT_DURATION_SECONDS;
+            long targetOffsetSec = static_cast<long>(i) * res.rel_config.time_window;
 
             // Wait until the exact RTC second for this datalogger's slot (0s, 40s, ...)
             while (CalculateElapsedSeconds(GetSecondsSinceMidnight(), windowStart) < targetOffsetSec) {

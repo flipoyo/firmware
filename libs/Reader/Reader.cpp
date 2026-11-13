@@ -68,6 +68,7 @@ GeneralConfig Reader::lireConfigCSV(const char* NomFichier, int CSPin) {
                 res.rel_config.dataloggers_EUIs.push_back(String(val));
             }
             else if (key == "datalogger_slot") res.rel_config.datalogger_slot = val.toInt();
+            else if (key == "time_window") res.rel_config.time_window = val.toInt();
             
             //config générale des intervallesww
             else if (key == "intervalle_de_mesure_secondes") {
