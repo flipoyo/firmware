@@ -82,7 +82,8 @@ void LoraCommunication::sendPacket(uint8_t packetNumber, RequestType requestType
 
     uint8_t buffer_sender[17] = {};  // 16 caractères + 1 pour '\0'
     Address_sent.toCharArray((char*)buffer_sender, sizeof(buffer_sender));
-
+    
+    DEBUG_LOG("t=" + GetCurrentHour());
     DEBUG_LOG("Sending packet to " + Address_waited + " from " + Address_sent + " with :");
     
     uint8_t checksum = calculateChecksum(Address_waited, Address_sent, packetNumber, requestType, payload);
@@ -107,6 +108,7 @@ void LoraCommunication::sendPacket(uint8_t packetNumber, RequestType requestType
 
 bool LoraCommunication::receivePacket(uint8_t &packetNumber, RequestType &requestType, String &payload) {
     if (!active) return false;
+    DEBUG_LOG("t=" + GetCurrentHour());
     DEBUG_LOG("lancement receive packet : looking for a packet...");
 
     delay(100);//VERY IMPORTANT
@@ -164,8 +166,8 @@ bool LoraCommunication::receivePacket(uint8_t &packetNumber, RequestType &reques
             //DEBUG_LOG("recipient :" + String(recipient));
             //DEBUG_LOG("sender :" + String(sender) + "\n");
 
-
-            if (!isValidDestination(senderAddress, recipientAddress, requestType)) {
+            // Pass recipientAddress first and senderAddress second to match isValidDestination signature
+            if (!isValidDestination(recipientAddress, senderAddress, requestType)) {
                 DEBUG_LOG("destination problématique");
                 return false;
             }

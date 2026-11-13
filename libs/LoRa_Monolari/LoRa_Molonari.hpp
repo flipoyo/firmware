@@ -8,7 +8,7 @@
 
 #include <Reader.hpp>
 
-#define nVersion 3.0.0
+#define nVersion 3.0.1
 
 enum RequestType : uint8_t {
     SYN  = 0xcc,
