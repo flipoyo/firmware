@@ -6,7 +6,7 @@
 #include <vector>
 #include <queue>
 
-#define nVersion 1.1.0
+#define nVersion 1.2.0
 
 // ---- Structures globales ----
 struct SensorConfig {
@@ -27,6 +27,7 @@ struct RelayConfig {
     String devEui; // utile pour le sensor
     std::vector<String> dataloggers_EUIs;     // list of all the dataloggers EUIs in the relay's config file
     int datalogger_slot = 0;
+    int time_window = 0;                      // This will hold the communication window time interval found in the config file on the SD card. (Default value is 40 in sensor/main.hpp and relay/main.hpp)
     int CSPin;
     float lora_freq;
     int intervalle_de_mesure_secondes;
