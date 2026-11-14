@@ -23,7 +23,7 @@ Once in `loop()`, the relay doesn't just use a simple `delay()` because the cloc
 After talking to all the dataloggers, the relay uses the remaining time in the cycle to forward the data in `RECORDS.CSV` to the server over LoRaWAN (using `appEui` and `appKey`). It keeps track of where it stopped in the file using `lastSDOffset`, so if the connection drops or a packet fails after 3 retries, it breaks out of the loop and will retry from that exact line during the next cycle. Finally, when the cycle is done (or if the Arduino was turned on in the middle of a cycle), it calculates how many milliseconds are left until the next RTC window and goes to sleep using `waiter.sleepFor()`.
 
 ## Setting up `conf.csv`
-I already wrote a detailed explanation of every single parameter inside `mains_ino/relay/conf.csv`, so go read the comments in that file before touching anything :) You can also generate a clean `conf.csv` using our Windows app ([https://github.com/flipoyo/MOLO-firmware-config](https://github.com/flipoyo/MOLO-firmware-config) or just edit it in Notepad.
+I already wrote a detailed explanation of every single parameter inside `mains_ino/relay/conf.csv`, so go read the comments in that file before :) You can also generate a clean `conf.csv` using our Windows app ([https://github.com/flipoyo/MOLO-firmware-config](https://github.com/flipoyo/MOLO-firmware-config) or just edit it in Notepad.
 
 The most important thing to remember for the relay's `conf.csv` is that you need one `devEui` line per datalogger, and you must list them in the exact order of their `datalogger_slot` index (0, then 1, etc.). Also, if you copy our `conf.csv` template onto the SD card, remove the # comment lines because a clean CSV is always safer.
 
