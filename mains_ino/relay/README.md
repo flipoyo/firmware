@@ -1,101 +1,48 @@
+Written in 2026 by Nabil El Houssein (26elhousse)
+
 # **Relay – Data Forwarding Node (MOLONARI 1D)**
-For setup, build, SD card config location, and flashing steps, start with `/hardware/firmware/README.md`.
+This README explains how the relay firmware (main.cpp and main.hpp) works. The relay runs on an Arduino MKR WAN 1310 and sits right in the middle of the pipeline: it collects measurements from all the dataloggers over LoRa, backs them up on its SD card, and forwards everything to the gateway over LoRaWAN.
 
-This firmware is part of the **MOLONARI 1D** project, acting as the **relay unit** between a sensor node and the gateway.
-It ensures reliable data forwarding, configuration management, and low-power operation.
-
-Before using this code, please read the README.md in the hardware section to understand the overall system architecture.
-
----
-
-## Summary
-
-This code implements the complete workflow of the **relay node** in the MOLONARI 1D system.
-
-It:
-- Reads configuration parameters from a CSV file stored on the SD card.  
-- Establishes LoRa communication with sensor nodes (slaves).
-- Forwards data packets via LoRaWAN.  
-- Operates in low-power mode between transmissions.
-
----
-
-## *Core Functionalities*
-
-- LoRa receiver for communication with multiple sensor nodes.  
-- Forwarding of received packets to a LoRaWAN network.  
-- Dynamic configuration via CSV file (`conf_rel.csv`).  
-- SD card management for configuration storage and updates.  
-- Retry mechanisms for robust data transmission.  
-- Downlink configuration updates via LoRaWAN.  
-- Low-power idle mode between communication windows.
-
-**Libraries Used:**
-
-- `Arduino.h`  
-- `SD.h`  
-- `queue`  
-- `ArduinoLowPower.h`  
-- `MKRWAN.h`  
-
-- `"LoRaWan_Molonari.hpp"`  
-- `"LoRa_Molonari.hpp"`  
-- `"Waiter.hpp"`  
-- `"Reader.hpp"`  
-- `"Time.hpp"`
-
----
+First, a quick warning before you waste any time: do not use or read `relay.ino`. That file is an old legacy entry point for the Arduino IDE. We only use PlatformIO now.   
 
 
-## Code Structure
+## How the files are organized
+Instead of cramming everything into one file or hardcoding numbers all over the place, the code is split between `main.cpp` and `main.hpp`. `main.hpp` holds the firmware version, the serial baud rate, the default SD pin, the file names (`conf.csv` and `RECORDS.CSV`), and the default timing constants like the 40-second slot duration. If you want to turn off serial debug logs to save power in the field, you can just comment out the `#define DEBUG_*` lines at the top of `main.hpp`.
 
-### 1. Setup (`setup`)
+`main.cpp` handles the actual logic inside `setup()` and `loop()`.
 
-The setup routine:
-- Initializes serial communication and the built-in LED.  
-- Reads configuration data from `conf.csv` on the SD card.  
-- Initializes LoRa and LoRaWAN communication parameters.  
-- Checks SD card availability and halts if missing.  
-- Prints system status messages for debugging.
+## How the relay works
+When the Arduino boots up in `setup()`, it starts the serial monitor, reads `conf.csv` from the SD card, and falls back to the default values in `main.hpp` if any parameter is missing. It then sets up the LoRa radio as MASTER, checks that the SD card is working (if the SD card is missing or broken, it loops forever and stops here), initializes the external RTC clock, and links the logger to `RECORDS.CSV`.
 
-### 2. Main Loop (`loop`)
+Once in `loop()`, the relay doesn't just use a simple `delay()` because the clock would slowly drift out of sync with the dataloggers. Instead, everything is aligned to the external RTC clock. Every `lora_intervalle_secondes` (for example, every 240s), the relay wakes up at the exact start of the cycle and loops through all the dataloggers listed in `conf.csv` one by one:
 
-The loop performs the following operations:
+1. It waits for the current datalogger's time slot (`i * time_window`). So datalogger 0 gets `0s–40s`, datalogger 1 gets `40s–80s`, and so on.
+2. It switches the expected LoRa address to that specific datalogger's `devEui` (`lora.setAddressWaited(targetEui)`), does the handshake, receives all the measurements, and closes the session with a `FIN` packet.
+3. It saves the received lines into `RECORDS.CSV` on the SD card. If a datalogger doesn't answer during its slot, the relay simply stops LoRa and moves on to the next datalogger in the list.
 
-#### a) LoRa Reception
-- Waits until the configured LoRa interval (`lora_intervalle_secondes`) is reached.  
-- Initiates a handshake with sensor nodes.  
-- Receives data packets and closes the LoRa session.  
-- Stores received packets in a sending queue.
+After talking to all the dataloggers, the relay uses the remaining time in the cycle to forward the data in `RECORDS.CSV` to the server over LoRaWAN (using `appEui` and `appKey`). It keeps track of where it stopped in the file using `lastSDOffset`, so if the connection drops or a packet fails after 3 retries, it breaks out of the loop and will retry from that exact line during the next cycle. Finally, when the cycle is done (or if the Arduino was turned on in the middle of a cycle), it calculates how many milliseconds are left until the next RTC window and goes to sleep using `waiter.sleepFor()`.
 
+## Setting up `conf.csv`
+I already wrote a detailed explanation of every single parameter inside `mains_ino/relay/conf.csv`, so go read the comments in that file before touching anything :) You can also generate a clean `conf.csv` using our Windows app ([https://github.com/flipoyo/MOLO-firmware-config](https://github.com/flipoyo/MOLO-firmware-config) or just edit it in Notepad.
 
-#### b) LoRaWAN Transmission
-- Establishes a LoRaWAN session using `appEui` and `devEui`.  
-- Sends all queued packets to the LoRaWAN network.  
-- Retries automatically if some packets fail.  
-- Reports transmission success or failure via Serial output.
+The most important thing to remember for the relay's `conf.csv` is that you need one `devEui` line per datalogger, and you must list them in the exact order of their `datalogger_slot` index (0, then 1, etc.). Also, if you copy our `conf.csv` template onto the SD card, remove the # comment lines because a clean CSV is always safer.
 
+## Flashing and running the code
 
-#### c) Low-Power Management
-- Calculates the remaining time before the next communication window.  
-- Puts the Arduino into **idle low-power mode** using `LowPower.idle()`.
+1. Put your clean `conf.csv` at the root of the SD card and plug the SD card into the relay Arduino.
+2. Open the firmware folder in VS Code with PlatformIO and upload using the `main_relay` environment:
+    
+    a. Download the `PlatformIO` IDE by `PlatformIO` extension in VS Code. It's the only extension you will need.
 
----
+    ![Platformio Extension in VS code](../../documentation/imgs/platformio_extension.png)
 
-## Configuration and using this code
+    b. On the left sidebar, click on the `PlatformIO` extension (it looks like an alien)
+    
+    c. Click on `main_relay` then `General`.
+    
+    d. Click on `Build` to build the code for the relay.
+    
+    ![Platformio build, upload, and monitor](../../documentation/imgs/platformio_relay.png)
 
-### Filling conf.csv
-
-a) You can change the intervals used for measurement and sending but it's porbably unnecessary.
-
-b) Do not modify the second paragraph.
-
-c) Change sensor configuration for it to match the pins oon your arduino.
-
-d) 
-
-### Using the code
-
-- Upload the code on the arduino via platformio. 
-- Put the conf.csv in the SD card, that goes in the arduino.
-- You're set up !
+3. If you want to check the logs, open the `PlatformIO` serial monitor.
+![Platformio serial monitor](../../documentation/imgs/platformio_serial_monitor.png)
