@@ -1,6 +1,8 @@
 
 # RTCBattery
 
+This library was introduced by Nabil El Houssein (26elhousse) in 2026
+
 ## Overview
 This library monitors the PCF8523 RTC backup coin cell (CR1220) and blocks system startup if the clock lost power or if the battery voltage drops below 2.5V.
 
