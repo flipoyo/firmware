@@ -1,313 +1,311 @@
+Updated in 2026 by Nabil El Houssein (26elhousse)
+
 # **Presentation of libraries**
 
-This document presents the various libraries used in the Molonari project for In the Air applications, as well as their basic operation with diagrams. 
+This document presents the various libraries used in the Molonari project for In the Air applications, as well as their basic operation with diagrams. For a detailed explanation of a specific library, check the `README.md` inside that library's folder.
 
 ## *LoRa_Molonari*
-LoRa_Molonari is a library enabling wireless communication between two boards via the LoRa protocol: 
+LoRa_Molonari is a library enabling point-to-point wireless communication between dataloggers (`SLAVE`) and the relay (`MASTER`) via the LoRa protocol:
 
-- Initialization and management of the LoRa connection: Starting and stopping the LoRa module.
-- Sending and receiving packets: With checksum and acknowledgment management.
+- Initialization and management of the LoRa connection: Starting and stopping the LoRa module, and switching the expected datalogger address (`setAddressWaited()`).
+- Sending and receiving packets: With XOR checksum, acknowledgment management, and SD byte-offset tracking (`sendAllPacketsAndManageMemory()`).
+- Timestamp injection: Injects the relay's RTC reception date and time into received CSV lines (`receiveAllPackets()`).
 - Handshake: Establishing a reliable connection between a master and a slave.
-- Session closure: Clean termination of communication.
+- Session closure: Clean termination of communication (`closeSession()`).
 
-
-
-       ┌────────────────────┐
-       │ startLoRa()        │
-       └────────────────────┘
-              │
-              ▼
-       ┌────────────────────┐
-       │ Handshake MASTER   │
-       │ SYN → SYN-ACK → ACK│
-       └────────────────────┘
-              │
-              ▼
-       ┌────────────────────┐
-       │ sendPackets()      │
-       │  - sendPacket()    │
-       │  - attendre ACK    │
-       └────────────────────┘
-              │
-              ▼
-       ┌────────────────────┐
-       │ receivePackets()   │
-       │  - receivePacket() │
-       │  - envoyer ACK     │
-       └────────────────────┘
-              │
-              ▼
-       ┌────────────────────┐
-       │ closeSession()     │
-       │  - envoyer FIN     │
-       │  - attendre FIN    │
-       └────────────────────┘
+           ┌────────────────────┐
+           │ startLoRa()        │
+           │ setAddressWaited() │
+           └─────────┬──────────┘
+                     │
+                     ▼
+           ┌────────────────────┐
+           │ Handshake MASTER   │
+           │ SYN → SYN-ACK → ACK│
+           └─────────┬──────────┘
+                     │
+                     ▼
+           ┌────────────────────────────────────┐
+           │ sendAllPacketsAndManageMemory()    │
+           │  - sendPacket(DATA)                │
+           │  - wait for matching ACK           │
+           │  - update SDOffset                 │
+           └─────────┬──────────────────────────┘
+                     │
+                     ▼
+           ┌────────────────────────────────────┐
+           │ receiveAllPackets()                │
+           │  - receivePacket()                 │
+           │  - insert relay reception date/time│
+           │  - send ACK (original payload)     │
+           └─────────┬──────────────────────────┘
+                     │
+                     ▼
+           ┌────────────────────┐
+           │ closeSession()     │
+           │  - send FIN        │
+           │  - wait for FIN    │
+           └────────────────────┘
 
 
 ## *LoRaWan_Molonari*
-LoRaWAN_Molonari is a library that enables data to be sent via the LoRaWAN network:
+LoRaWan_Molonari is a library that enables data stored on the relay's SD card to be encoded into Protobuf and sent via the LoRaWAN network:
 
-- OTAA connection: Activation of the LoRaWAN module via AppEUI and AppKey.
-- Data transmission: Management of a queue of messages to be sent.
-- Error handling: Automatic retry in case of transmission failure.
+- OTAA connection: Activation of the LoRaWAN module (`EU868`) via `appEui` and `appKey`.
+- Binary encoding: Parses CSV measurement lines and encodes them into compact Nanopb binary payloads (`encode()`).
+- Data transmission & SD management: Sends queued `memory_line` packets with 5-second duty-cycle spacing and updates `SDOffset` as packets are acknowledged (`sendAllPacketsAndManageMemoryWAN()`).
+- Error handling: Automatic retry (up to 3 times per wakeup window) and SD cursor rewind on failure.
 - Network configuration: Adaptive data rate (ADR) and poll interval.
 
-       ┌────────────────────────┐
-       │ Queue of messages      │
-       │ (std::queue<String>)   │
-       └───────────┬────────────┘
-              │
-              ▼
-       ┌────────────────────────┐
-       │ LoraWANCommunication   │
-       │ sendQueue()            │
-       └────────────────────────┘
-              │
-              ▼
-       ┌────────────────────────┐
-       │ Loop on every msg      │
-       │  - beginPacket()       │
-       │  - print(payload)      │
-       │  - endPacket()         │
-       └────────────────────────┘
-              │
-              ▼
-       ┌────────────────────────┐
-       │ Check error            │
-       │  - if ok : delete.     │
-       │  - else : retry (max6) │
-       └────────────────────────┘
-              │
-              ▼
-       ┌────────────────────────┐
-       │ Transmission sucess ?  │
-       │  - Yes → log message   │
-       │  - No  → quit msg      │
-       └────────────────────────┘
+           ┌──────────────────────────┐
+           │ Queue of memory_line     │
+           │ (from RECORDS.CSV)       │
+           └────────────┬─────────────┘
+                        │
+                        ▼
+           ┌──────────────────────────────────┐
+           │ LoraWANCommunication             │
+           │ sendAllPacketsAndManageMemoryWAN │
+           └────────────┬─────────────────────┘
+                        │
+                        ▼
+           ┌──────────────────────────┐
+           │ Loop on every msg        │
+           │  - encode() to Protobuf  │
+           │  - beginPacket()         │
+           │  - write(buffer, length) │
+           │  - endPacket(true)       │
+           └────────────┬─────────────┘
+                        │
+                        ▼
+           ┌──────────────────────────┐
+           │ Check error              │
+           │  - if ok : pop & advance │
+           │    SDOffset (+ 5s delay) │
+           │  - else : retry (max 3)  │
+           └────────────┬─────────────┘
+                        │
+                        ▼
+           ┌──────────────────────────┐
+           │ Transmission success ?   │
+           │  - Yes → next packet     │
+           │  - No  → seek(SDOffset)  │
+           │          & retry next    │
+           │          cycle           │
+           └──────────────────────────┘
 
+
+## *encode*
+encode is the Nanopb (Protocol Buffers) library used by `LoRaWan_Molonari` to serialize measurement lines into compact binary packets (`<= 51` bytes for `EU868` `DR0`):
+
+- Defines the `SensorData` C struct and Nanopb field descriptors (`encode.h` / `encode.c`).
+- Packs the 16-char datalogger `UI` (Tag `1`), sensor recording Unix `time` (Tag `2`), `relay_receive_time` (Tag `4`), and up to 10 raw 12-bit integer `measurements` (Tag `5`).
+
+           ┌────────────────────────────────────────┐
+           │ CSV Line from Relay SD Card            │
+           │ UI ; id ; date ; time ; r_date ; ...   │
+           └───────────────────┬────────────────────┘
+                               │
+                               ▼
+           ┌────────────────────────────────────────┐
+           │ SensorData Struct (encode.h)           │
+           │  - Tag 1: UI (char[17])                │
+           │  - Tag 2: time (int32_t Unix)          │
+           │  - Tag 4: relay_receive_time (int32_t) │
+           │  - Tag 5: measurements (uint32_t[10])  │
+           └───────────────────┬────────────────────┘
+                               │
+                               ▼
+           ┌────────────────────────────────────────┐
+           │ pb_encode()                            │
+           │  → Binary payload (~44 bytes <= 51B)   │
+           └────────────────────────────────────────┘
 
 
 ## *Measure*
 Measure is a library that allows you to retrieve data from sensors and format it:
 
-- a Sensor class that retrieves data from sensors
-- a Measure class that formats the measurements sent to it
+- a `Sensor` class that retrieves data from physical analog sensors (12-bit ADC resolution, `0–4095`)
+- a `Measure` class that formats the measurements sent to it
 
-The data is returned in the form “ ‘Measure no.’ ID, date, time, measurements” and is then sent to Writer.
+The data is returned in the form `"uidString ; id ; date ; time ; val1 ; val2 ; ... ;"` and is then sent to `Writer`.
 
-                  ┌───────────────────────────┐
-                  │        Sensor             │
-                  └─────────────┬─────────────┘
-                                │
-             ┌──────────────────┴──────────────────┐
-             │                                     │
-             ▼                                     ▼
-    ┌────────────────────┐                 ┌─────────────────────┐
-    │ Default constructor│                 │ Full constructor.   │
-    │                    │                 │ with pins, etc... │
-    │ (dataPin=-1,...)   │                 │                     │
-    └─────────┬──────────┘                 └─────────┬───────────┘
-              │                                      │
-              └──────────────┐───────────────────────┘
-                             ▼
-                    ┌────────────────────────────────────┐
-                    │ Sensor::Measure                    │
-                    │ 1. Active sensor (enablePin HIGH)  │
-                    │ 2. Wait 200 ms                     │
-                    │ 3. Read analogic on dataPin        │
-                    │ 4. Desactivates sensor (LOW)       │
-                    │ 5. Return measure (MESURE)         │
-                    └─────────┬──────────────────────────┘
-                              │
-                              ▼
-                    ┌─────────────────┐
-                    │   Measure       │
-                    └─────────┬───────┘
-                              │
-                ┌─────────────┴─────────────┐
-                ▼                           ▼
-    ┌───────────────────────┐     ┌───────────────────────┐
-    │ Measure::oneLine()    │     │ Measure::ToString()   │
-    │ - Gets date/hour      │     │ - Prefix "Measure n°" │
-    │ - Loop vecteur        │     │ - Call oneLine()      │
-    │   channel[] for       │     │ - Return string       │
-    │   formatting values.  │     └───────────────────────┘
-    │ - Return ligne CSV    │
-    └───────────────────────┘
+                      ┌───────────────────────────┐
+                      │        Sensor             │
+                      └─────────────┬─────────────┘
+                                    │
+                 ┌──────────────────┴──────────────────┐
+                 │                                     │
+                 ▼                                     ▼
+        ┌────────────────────┐                 ┌─────────────────────┐
+        │ Default constructor│                 │ Full constructor    │
+        │                    │                 │ with pins, 12-bit   │
+        │ (dataPin=-1,...)   │                 │ ADC resolution      │
+        └─────────┬──────────┘                 └─────────┬───────────┘
+                  │                                      │
+                  └──────────────┐───────────────────────┘
+                                 ▼
+                        ┌────────────────────────────────────┐
+                        │ Sensor::get_voltage()              │
+                        │ 1. Activate sensor (enablePin HIGH)│
+                        │ 2. Wait 200 ms                     │
+                        │ 3. Read analog on dataPin          │
+                        │ 4. Deactivate sensor (LOW)         │
+                        │ 5. Return voltage reading          │
+                        └─────────┬──────────────────────────┘
+                                  │
+                                  ▼
+                        ┌─────────────────┐
+                        │   Measure       │
+                        └─────────┬───────┘
+                                  │
+                    ┌─────────────┴─────────────┐
+                    ▼                           ▼
+        ┌───────────────────────┐     ┌───────────────────────┐
+        │ Measure::oneLine()    │     │ Measure::ToString()   │
+        │ - Gets RTC date/hour  │     │ - Calls oneLine()     │
+        │ - Loops channel[]     │     │ - Returns CSV string  │
+        │   for formatting      │     └───────────────────────┘
+        │ - Returns CSV line    │
+        └───────────────────────┘
 
 
 ## *Writer*
-Writer is a library that allows you to write data to the SD card:
+Writer is a library that allows you to write data to the SD card (`RECORDS.CSV`):
 
 - The target CSV path is provided when constructing a `Writer`
 - Connection management (automatic reconnection in case of loss)
 - Optional debug logs
-- Sequential IDs continued from the last stored measurement
-- Standardized CSV formatting and writing to the card
+- Sequential IDs continued from the last stored measurement (`GetNextId()` seeks to the end of the file)
+- Standardized CSV formatting (`LogData` on dataloggers, `LogString` on the relay) and flushing to the card
 
+       ┌───────────────────────────────┐
+       │          CAPTEURS             │
+       │ (Measure via Sensor/Measure)  │
+       └─────────────┬─────────────────┘
+                     │
+                     ▼
+       ┌───────────────────────────────┐
+       │          MEASURE              │
+       │ - Contains values             │
+       │ - Formats as CSV (ToString)   │
+       └─────────────┬─────────────────┘
+                     │
+                     ▼
+       ┌───────────────────────────────┐
+       │           WRITER              │
+       │                               │
+       │ EstablishConnection()         │
+       │ └─ GetNextId() (from EOF)     │
+       │                               │
+       │ LogData() / LogString()       │
+       │ ├─ Check SD connection        │
+       │ ├─ Reconnect() if lost        │
+       │ ├─ Write CSV and flush()      │
+       │ └─ Increments next_id         │
+       │                               │
+       │ Dispose() → Close file        │
+       └─────────────┬─────────────────┘
+                     │
+                     ▼
+       ┌───────────────────────────────┐
+       │            SD                 │
+       │ - Keeps measures in           │
+       │   RECORDS.CSV                 │
+       └───────────────────────────────┘
 
-
-┌───────────────────────────────┐
-│          CAPTEURS             │
-│ (Measure via Sensor/Measure)  │
-└───────────────┬───────────────┘
-                │
-                ▼
-┌───────────────────────────────┐
-│          MEASURE              │
-│ - Contains values.            │
-│ - Formats as CSV (ToString)   │
-└───────────────┬───────────────┘
-                │
-                ▼
-┌───────────────────────────────┐
-│           WRITER              │
-│                               │
-│ LogData()                     │
-│ ├─ ApplyContent() → Fills     │
-│ │    channels                 │
-│ ├─ Check SD connexion.        │
-│ ├─ WriteInNewLine() → Write   │
-│ │   CSV and flush             │
-│ └─ Increments next_id         │
-│                               │
-│ Reconnect() → Restaure SD if  │
-│ loss of connexion             │
-│ Dispose() → Close file        │
-└───────────────┬───────────────┘
-                │
-                ▼
-┌───────────────────────────────┐
-│             SD                │
-│ - Keeps measures as CSV.      │
-└───────────────────────────────┘
 
 ## *Reader*
-Reader is a library that allows you to retrieve data stored on the SD card after it has been written by Writer:
+Reader is a library that parses the `conf.csv` configuration file from the SD card at startup and provides the `memory_line` struct used to track SD byte offsets:
 
-- Read a CSV configuration file for an embedded system (LoRa settings, sensors, etc.)
-- Manage a read cursor for a data file (data.csv)
-- Load data into a queue for later processing
-- Save the cursor position to resume reading after a power failure
+- Read a CSV configuration file (`conf.csv`) for both the relay and sensor nodes (LoRa settings, `dataloggers_EUIs`, `datalogger_slot`, `time_window`, sensors, etc.)
+- Provide `memory_line(flush, memory_successor)` to track the exact SD card byte offset after each line in `RECORDS.CSV`
+- *(Note: older methods like `UpdateCursor()` and `loadDataIntoQueue()` are kept in the class for legacy reasons but are replaced by `memory_line` and `lastSDOffset` in the active firmware.)*
 
-                       ┌─────────────────────────────┐
-                       │        Reader               │
-                       └─────────────┬───────────────┘
-                                     │
-           ┌─────────────────────────┴─────────────────────────┐
-           ▼                                                   ▼
- ┌─────────────────────┐                           ┌────────────────────────────────┐
- │ lireConfigCSV()     │                           │ SD file operations             │
- │ - Opens file CSV    │                           │ (data.csv, cursor_position.txt)│
- │ - Lit line per      │                           └─────────┬──────────────────────┘
- │   line              │                                     │
- │ - Cuts in tokens    │
- │ - Fills liste_capteurs vector<SensorConfig> 
- └─────────────────────┘
-                                     │
-                                     ▼
-                       ┌──────────────────────────────┐
-                       │ EstablishConnection(shift)   │
-                       │ - Opens file data.csv        │
-                       │ - Gets cursor.               │
-                       │ - allows reading             │  
-                       └─────────────┬────────────────┘
-                                     │
-           ┌─────────────────────────┴─────────────────────────┐
-           ▼                                                   ▼
- ┌─────────────────────┐                           ┌─────────────────────────┐
- │ UpdateCursor(shift) │                           │ loadDataIntoQueue()     │
- │ - Moves line_cursor │                           │ - Reads following.      │
- │ - Saves curseur     │                           │   lines dans la SD      │
- │   in cursor.txt     │                           │ - fills queue<String>   │
- └─────────────────────┘                           └─────────┬───────────────┘
-                                     │
-                                     ▼
-                       ┌─────────────────────────────────────┐
-                       │ ReadMeasure() / IsDataAvailable()   │
-                       │ - Reads following line              │
-                       │ - Check disponibility.              │
-                       └─────────────┬───────────────────────┘
-                                     │
-                                     ▼
-                       ┌─────────────────────────────┐
-                       │ Dispose()                   │
-                       │ - close SD file.            │
-                       └─────────────────────────────┘
+                           ┌─────────────────────────────┐
+                           │        Reader               │
+                           └─────────────┬───────────────┘
+                                         │
+                ┌────────────────────────┴────────────────────────┐
+                ▼                                                 ▼
+       ┌────────────────────────────────────┐            ┌──────────────────────────────┐
+       │ lireConfigCSV()                    │            │ memory_line struct           │
+       │ - Opens conf.csv on SD             │            │ - flush (CSV line string)    │
+       │ - Ignores '#' comments & empty     │            │ - memory_successor (SD byte  │
+       │ - 2 tokens → Relay & Interval cfg  │            │   offset after the line)     │
+       │ - 3 tokens → SensorConfig vector   │            └──────────────────────────────┘
+       └────────────────────────────────────┘
 
-## *Time*
-This library manages the time and interval-based measurement and communication schedules for the MKR board-based system. The active firmware uses the external `RTC_PCF8523` as its time source. If the RTC reports that it has lost power, it is initialized from the firmware compilation date and time.
 
-`GetCurrentDate()`, `GetCurrentHour()`, and `GetSecondsSinceMidnight()` read the current value from the external RTC. The relay and sensor store event timestamps as seconds since midnight. `CalculateElapsedSeconds()` compares those timestamps and adds one day when the current seconds value is lower than the previous value, so intervals that cross midnight continue to work correctly.
+## *Time & RtcBattery*
+`Time` manages the external `RTC_PCF8523` clock and the TDMA slot alignment schedules for the MKR boards, while `RtcBattery` verifies the RTC hardware and backup battery at startup.
 
-`CalculateSleepTimeUntilNextMeasurement()` and `CalculateSleepTimeUntilNextCommunication()` return the remaining interval in milliseconds. They return zero when the requested interval has already elapsed; the caller passes the resulting duration to the appropriate low-power wait function.
-                 ┌──────────────────────────┐
-                 │  Read config CSV         │
-                 │  (freq_mesure&freq_LoRa) │
-                 └─────────────┬────────────┘
-                               │
-                               ▼
-                  ┌─────────────────────────┐
-                  │ Initialize external RTC │
-                  └─────────────┬───────────┘
-                                │
-          ┌─────────────────────┴─────────────────────┐
-          │                                           │
-          ▼                                           ▼
- ┌─────────────────────┐                     ┌───────────────────────┐
- │ Read current date   │                     │ Read seconds since    │
- │ and time            │                     │ midnight              │
- └─────────┬───────────┘                     └─────────┬─────────────┘
-           │                                           │
-           ▼                                           ▼
-  ┌─────────────────────┐                   ┌────────────────────────┐
-  │ GetCurrentDate/Hour│                    │ CalculateElapsedSeconds│
-  │                    │                   │ handles midnight       │
-  └─────────┬───────────┘                   └─────────┬──────────────┘
-            │                                            │
-            ▼                                            ▼
-   ┌─────────────────────┐                     ┌───────────────────────┐
-   │ Initialises loop    │                     │ Determines next       │
-   │ measures            │                     │ measurement time      │
-   └─────────┬───────────┘                     └─────────┬─────────────┘
-             │                                            │
-             └───────────────────┬────────────────────────┘
-                                 ▼
-                      ┌─────────────────────────┐
-                      │ CalculateSleepTimeUntil │
-                      │ NextMeasurement()       │
-                      │  → return ms until      │
-                      │    next measure         │
-                      └─────────────────────────┘
-                                 │
-                                 ▼
-                      ┌─────────────────────────┐
-                      │ Microcontroler sleeps   │
-                      │ until next              │
-                      │ measure (low power)     │
-                      └─────────────────────────┘
-                                 │
-                                 ▼
-                      ┌─────────────────────────┐
-                      │ Wakes up and measueres  │
-                      │ via Sensor::Measure()   │
-                      └─────────────────────────┘
-                                 │
-                                (loop)
+During `InitialiseRTC()`, `VerifyRtcBattery()` checks the RTC connection over I2C, verifies the Oscillator Stop (`OS`) flag, and checks the coin-cell battery voltage (`2.5V` threshold).
+
+`GetCurrentDate()`, `GetCurrentHour()`, and `GetSecondsSinceMidnight()` read the current value from the external RTC. `CalculateElapsedSeconds()` compares timestamps and adds one day (`86400s`) when crossing midnight.
+
+For communication scheduling, `IsInAlignedSlotWindow()` and `CalculateSleepTimeUntilNextAlignedSlot()` align the relay and dataloggers to exact multiples of `lora_intervalle_secondes` (with a `+1000 ms` wakeup margin) so multiple dataloggers can transmit in dedicated `time_window` slots (`i * time_window`) without colliding.
+
+                     ┌───────────────────────────┐
+                     │  Read conf.csv            │
+                     │  (intervals & time_window)│
+                     └─────────────┬─────────────┘
+                                   │
+                                   ▼
+                     ┌───────────────────────────┐
+                     │ InitialiseRTC()           │
+                     │ └─ VerifyRtcBattery()     │
+                     └─────────────┬─────────────┘
+                                   │
+             ┌─────────────────────┴─────────────────────┐
+             ▼                                           ▼
+    ┌──────────────────────┐                   ┌───────────────────────────┐
+    │ GetCurrentDate/Hour()│                   │ GetSecondsSinceMidnight() │
+    │  → stamps CSV lines  │                   └─────────┬─────────────────┘
+    └──────────────────────┘                             │
+                                                         ▼
+                                   ┌─────────────────────┴─────────────────────┐
+                                   ▼                                           ▼
+                    ┌─────────────────────────────┐             ┌─────────────────────────────┐
+                    │ CalculateSleepTimeUntil     │             │ IsInAlignedSlotWindow() &   │
+                    │ NextMeasurement()           │             │ CalculateSleepTimeUntil     │
+                    │  → sensor measurement loop  │             │ NextAlignedSlot() (+1000ms) │
+                    └─────────────────────────────┘             │  → TDMA LoRa slot sync      │
+                                                                └─────────────────────────────┘
+
 
 ## *Waiter*
-This library manages timed low-power waits for the Arduino.
-┌─────────────────────────┐
-│       Waiter            │
-└────────────┬────────────┘
-             │
-             ▼
-      ┌──────────────────────┐
-      │ sleepFor(duration)   │
-      │ - skips non-positive │
-      │   durations           │
-      │ - enters deep sleep  │
-      └──────────────────────┘
+This library manages timed waits for the Arduino.
 
-`sleepFor()` accepts a duration in milliseconds. The caller is responsible
-for calculating the time remaining until the next scheduled operation.
+    ┌─────────────────────────┐
+    │       Waiter            │
+    └────────────┬────────────┘
+                 │
+                 ▼
+          ┌──────────────────────────────┐
+          │ sleepFor(duration)           │
+          │ - skips non-positive         │
+          │   durations                  │
+          │ - DEBUG on  → delay()        │
+          │ - DEBUG off → LowPower       │
+          │   deepSleep()                │
+          └──────────────────────────────┘
+
+`sleepFor()` accepts a duration in milliseconds. When `DEBUG` is enabled in `Waiter.cpp`, it uses `delay()` so the USB serial connection is not severed during debugging; when `DEBUG` is commented out for field deployment, it enters `LowPower.deepSleep()`.
+
+
+## *Memory_monitor*
+A lightweight debugging utility (`Memory_monitor.hpp` / `Memory_monitor.cpp`) that provides `freeMemory()` to inspect remaining RAM on the Arduino.
+
+    ┌─────────────────────────┐
+    │    Memory_monitor       │
+    └────────────┬────────────┘
+                 │
+                 ▼
+          ┌──────────────────────────────┐
+          │ freeMemory()                 │
+          │ - gets stack top (&top)      │
+          │ - gets heap top (sbrk(0))    │
+          │ - returns free bytes between │
+          │   stack and heap             │
+          └──────────────────────────────┘
