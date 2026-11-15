@@ -87,7 +87,9 @@ If you want to flash with Arduino IDE:
 # Contributors
 Unfortunately, I don't know the previous contributors to the firmware side of MOLONARI, so I will just start adding from this year's (2026) edition. Feel free to add your name in the list:
 
-## Group "In the Air 2026"
-* Nabil El Houssein 😎 (26elhousse)
-* Santiago Estrada (26estrada)
-* Lea Al Haddad (26alhaddad)
+## Group "In the Air" 2026
+* Nabil El Houssein 😎🇱🇧 (26elhousse)
+* Santiago Estrada 🇨🇴 (26estrada)
+* Lea Al Haddad 🇱🇧 (26alhaddad)
+
+*This is the final modification from the 2026 "In the Air" team which was made on 15 November 2026. Good luck to the next teams taking over the project!*

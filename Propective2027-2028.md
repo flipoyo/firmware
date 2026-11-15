@@ -1,4 +1,4 @@
-For the attention of 2A mineurs in 2026/2027
+For the attention of 2A mineurs in 2027/2028
 
 1. This year’s final version
 
