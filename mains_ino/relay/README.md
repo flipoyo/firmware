@@ -41,8 +41,13 @@ The most important thing to remember for the relay's `conf.csv` is that you need
     c. Click on `main_relay` then `General`.
     
     d. Click on `Build` to build the code for the relay.
+
+    e. Click on `Upload` or `Upload & Monitor` to flash the code to the relay and start monitoring.
+
+    *If upload waits for a new port, double-press reset on MKR WAN 1310.*
     
     ![Platformio build, upload, and monitor](../../documentation/imgs/platformio_relay.png)
 
-3. If you want to check the logs, open the `PlatformIO` serial monitor.
-![Platformio serial monitor](../../documentation/imgs/platformio_serial_monitor.png)
+3. If you want to check the logs and haven't clicked on `Monitor` above, then you can open the `PlatformIO` serial monitor.
+
+    ![Platformio serial monitor](../../documentation/imgs/platformio_serial_monitor.png)
